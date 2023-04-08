@@ -115,6 +115,11 @@ sys_fstat(void)
 }
 
 // Create the path new as a link to the same inode as old.
+/*
+KC Project 4 - Part 2 - Just adding some notes
+Other system calls (e.g., link and unlink) must not follow symbolic links; 
+these system calls operate on the symbolic link itself.
+*/
 int
 sys_link(void)
 {
@@ -181,6 +186,11 @@ isdirempty(struct inode *dp)
 }
 
 //PAGEBREAK!
+/*
+KC Project 4 - Part 2 - Just adding some notes
+Other system calls (e.g., link and unlink) must not follow symbolic links; 
+these system calls operate on the symbolic link itself.
+*/
 int
 sys_unlink(void)
 {
@@ -282,6 +292,16 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+/*
+KC - Project 4 - Part 2 - Just adding notes 
+Modify the open system call to handle the case where the path refers to a symbolic link. 
+If the file does not exist, open must fail. When a process specifies O_NOFOLLOW in the flags 
+to open, open should open the symlink (and not follow the symbolic link).
+
+If the linked file is also a symbolic link, you must recursively follow it until a non-link file 
+is reached. If the links form a cycle, you must return an error code. You may approximate this 
+by returning an error code if the depth of links reaches some threshold (e.g., 10).
+*/
 int
 sys_open(void)
 {
