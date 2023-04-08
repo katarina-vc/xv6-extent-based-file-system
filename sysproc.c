@@ -170,3 +170,9 @@ sys_printProcessTable(void)
 	printProcessTable(processId);
 }
 
+// KC - Project 4 SymLink System Call implementation
+void
+sys_symlink(void)
+{
+  exit();
+}

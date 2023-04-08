@@ -113,6 +113,8 @@ extern int sys_get_sched_priority(void);
 //AI - Add in system calls 
 extern int sys_fifo_position(void);
 
+// KC - Symlink system call project 4
+extern int sys_symlink(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,

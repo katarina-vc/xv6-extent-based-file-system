@@ -33,6 +33,9 @@ int get_sched_priority(int);
 //AI - Add in more system calls 
 int fifo_position(int pid);
 
+// KC - Project 4 symlink system call
+int symlink(char*, char*);
+
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
