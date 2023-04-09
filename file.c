@@ -121,6 +121,23 @@ filewrite(struct file *f, char *addr, int n)
 
   if(f->writable == 0)
     return -1;
+
+  // JTM - Check if the offset is bigger than the file size
+  if(f->off > f->ip->size){
+	// Add in 0's to fill in holes.
+	int byteDiff = f->off - f->ip->size;
+	
+	begin_op();
+	ilock(f->ip);
+
+	writei(f->ip, '\0', f->off, byteDiff);
+
+	iunlock(f->ip);
+	end_op();
+
+	f->ip->size += byteDiff;
+  }
+
   if(f->type == FD_PIPE)
     return pipewrite(f->pipe, addr, n);
   if(f->type == FD_INODE){
@@ -154,4 +171,3 @@ filewrite(struct file *f, char *addr, int n)
   }
   panic("filewrite");
 }
-
