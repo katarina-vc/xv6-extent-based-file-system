@@ -170,15 +170,3 @@ sys_printProcessTable(void)
 	printProcessTable(processId);
 }
 
-// KC - Project 4 SymLink System Call implementation
-/*
-Implement the symlink(target, path) system call to create a new symbolic link at path that refers to target. 
-Note that target does not need to exist for the system call to succeed. You will need to choose somewhere to 
-store the target path of a symbolic link, for example, in the inode's data blocks. symlink should return an 
-integer representing success (0) or failure (-1) similar to link and unlink.
-*/
-void
-sys_symlink(void)
-{
-  exit();
-}

@@ -15,6 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "stddef.h"
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
@@ -113,6 +114,18 @@ sys_fstat(void)
     return -1;
   return filestat(f, st);
 }
+
+char*
+strcpy2(char *s, const char *t)
+{
+  char *os;
+
+  os = s;
+  while((*s++ = *t++) != 0)
+    ;
+  return os;
+}
+
 
 // Create the path new as a link to the same inode as old.
 /*
@@ -249,33 +262,48 @@ bad:
 }
 
 static struct inode*
-create(char *path, short type, short major, short minor)
+create(char *path, short type, short major, short minor, char *symLinkTargetPath)
 {
   struct inode *ip, *dp;
   char name[DIRSIZ];
 
+  // DELETEME: nameiparent() looks up a path in the fiel system and returns a pointer to the inode structure for the directory containing the path
+  // this function is often used to find the parent directory of a file/directory being created or renamed
+  // the path arg is the path to the file or directory being looked up, the "name" arg is the buffer that will contain the file or directories name
+  // so here we get the name of the parent folder from our path
   if((dp = nameiparent(path, name)) == 0)
     return 0;
-  ilock(dp);
+  ilock(dp); // acqiure the lock on the parent directory inode so we can modify the inode's data
 
+ // This whole block checks to see if the inode we are creating lowkey already exists
+ // deleteme: looks up a file name in a directory and returns a pointer to the inode structure for the file if it exists, if the file doesnt exist then null is returned
+ // dp is the directory to search, name is the file to lookup, 0 (poff) will be set to the files directory entry within the directory 
+ // look up the file name in the directory
   if((ip = dirlookup(dp, name, 0)) != 0){
-    iunlockput(dp);
-    ilock(ip);
+    iunlockput(dp); // releases lock on the dp inode and also free it if its no longer in use
+    ilock(ip); // lock the ip inode
     if(type == T_FILE && ip->type == T_FILE)
-      return ip;
-    iunlockput(ip);
-    return 0;
+      return ip; // return the inode for a file if it already exists
+    iunlockput(ip); // free and release the inode 
+    return 0; // leave
   }
 
+  // if the file we are trying to create doesnt already exists, then lets allocate that bih
   if((ip = ialloc(dp->dev, type)) == 0)
     panic("create: ialloc");
 
+
   ilock(ip);
+  // check if type if a symlink
+  if(type == T_SYMLINK) {
+    cprintf("\nwe have a symlink!\n");
+  }
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
-  iupdate(ip);
+  iupdate(ip); // update writes an inode structure and its data blocks to disk
 
+ // creates a directory specific inode
   if(type == T_DIR){  // Create . and .. entries.
     dp->nlink++;  // for ".."
     iupdate(dp);
@@ -284,10 +312,14 @@ create(char *path, short type, short major, short minor)
       panic("create dots");
   }
 
+  // creates a new directory entry for a file or new directory within a directory
+  // dp is the inode for the parent directory that this new thingy thing will exist within
+  // name is the name of the new file or directory
+  // inum is the inode number of the new file or directory
   if(dirlink(dp, name, ip->inum) < 0)
     panic("create: dirlink");
 
-  iunlockput(dp);
+  iunlockput(dp); // free and release the inode
 
   return ip;
 }
@@ -309,14 +341,14 @@ sys_open(void)
   int fd, omode;
   struct file *f;
   struct inode *ip;
-
+  char targetBuf[DIRSIZ];
+  
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
 
   begin_op();
-
   if(omode & O_CREATE){
-    ip = create(path, T_FILE, 0, 0);
+    ip = create(path, T_FILE, 0, 0, NULL);
     if(ip == 0){
       end_op();
       return -1;
@@ -332,6 +364,26 @@ sys_open(void)
       end_op();
       return -1;
     }
+
+    // deleteme modifyme strt
+    if (ip->type == T_SYMLINK) {
+      // lock the inode
+      cprintf("\npath things: %s\n", path);
+
+      // get the target path from the inode
+      // readi() reads data from an inode structure
+      // the ip is a pointer to the inode structure being read
+      // dst is the a pointer to the buffer where data will be stored
+      // off is the offset within the file to start reading at
+      // and n is the number of bytes to read
+      readi(ip, targetBuf, 0, 7);
+      cprintf("\ntargetBuf things: %s\n", targetBuf);
+      path = "/0";
+      strcpy2(path, targetBuf);
+      cprintf("\npath thing 2s: %s\n", path);
+      iunlockput(ip); // releases and free the lock on ip
+  }
+// deleteme modifyme end
   }
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
@@ -343,7 +395,6 @@ sys_open(void)
   }
   iunlock(ip);
   end_op();
-
   f->type = FD_INODE;
   f->ip = ip;
   f->off = 0;
@@ -359,7 +410,7 @@ sys_mkdir(void)
   struct inode *ip;
 
   begin_op();
-  if(argstr(0, &path) < 0 || (ip = create(path, T_DIR, 0, 0)) == 0){
+  if(argstr(0, &path) < 0 || (ip = create(path, T_DIR, 0, 0, NULL)) == 0){
     end_op();
     return -1;
   }
@@ -379,7 +430,7 @@ sys_mknod(void)
   if((argstr(0, &path)) < 0 ||
      argint(1, &major) < 0 ||
      argint(2, &minor) < 0 ||
-     (ip = create(path, T_DEV, major, minor)) == 0){
+     (ip = create(path, T_DEV, major, minor, NULL)) == 0){
     end_op();
     return -1;
   }
@@ -460,5 +511,48 @@ sys_pipe(void)
   }
   fd[0] = fd0;
   fd[1] = fd1;
+  return 0;
+}
+
+// KC - Project 4 SymLink System Call implementation
+/*
+Implement the symlink(target, path) system call to create a new symbolic link at path that refers to target. 
+Note that target does not need to exist for the system call to succeed. You will need to choose somewhere to 
+store the target path of a symbolic link, for example, in the inode's data blocks. symlink should return an 
+integer representing success (0) or failure (-1) similar to link and unlink.
+*/
+int
+sys_symlink(void)
+{
+  // The symlink system call takes in two args, char* target, and char* path. 
+  // target: the name/location of the file we are trying to link (we are not handling symlink for directories) (this should be
+  // the name of the file we are trying to link or path to that file we are trying to link)
+  // path: the symlinks nickname (aka pathname) (aka new pathname)
+  // essentially when given the path (nickname), we go look up the actual file at the target
+  char *path;
+  char *target;
+
+  // get the argz
+  if(argstr(0, &target) < 0 || argstr(1, &path) < 0) {
+    return -1; // symlink returns -1 for failure
+  }
+
+  cprintf("\ntarget: %s\n", target);
+  cprintf("path: %s\n", path);
+
+  // Add transaction statements
+  begin_op();
+
+  struct inode *ip = create(path, T_SYMLINK, 0, 0, NULL);
+  // writei() writes data to an inode structure
+  // the ip arg is the inode structure being written to
+  // buf is the pointer to the buffer containing the data to write
+  // uint off is the offset within the file to start writing
+  // and n is the number of bytes to write
+  // writei(ip,&len, 0, sizeof(int));
+  writei(ip, target, 0, strlen(target));
+  iunlockput(ip);
+  end_op();
+  // symlink returns 0 for success
   return 0;
 }

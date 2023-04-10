@@ -143,6 +143,7 @@ static int (*syscalls[])(void) = {
 [SYS_get_sched_priority]   sys_get_sched_priority,
 [SYS_fifo_position]	sys_fifo_position,
 [SYS_printProcessTable] sys_printProcessTable,
+[SYS_symlink] sys_symlink,
 };
 
 void

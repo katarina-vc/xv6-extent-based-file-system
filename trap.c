@@ -92,7 +92,6 @@ allocPage(pde_t *pgdir, char* va, uint size)
 
 	// Allocate pages up to the size of the process (This is similar to allocuvm()).
 	for(; a < size; a += PGSIZE){
-		cprintf("Allocating address 0x%x.\n", a);
   		mem = kalloc();
   
   		if(mem == 0){
@@ -175,13 +174,10 @@ trap(struct trapframe *tf)
 	struct proc *currentProcess = myproc();
 	uint size = currentProcess->sz;
 
-	cprintf("Trap 14: Allocating new page lazily.\nComplaining address: 0x%x.\nSize before allocation: %d.\n", rcr2(), size);
 	
 	if((size = allocPage(currentProcess->pgdir, (char*)rcr2(), size)) == 0){
 		panic("allocPage: failed to allocate new page.");
 	}
-
-	cprintf("Trap handled.\n");
 
 	switchuvm(currentProcess);
 	
