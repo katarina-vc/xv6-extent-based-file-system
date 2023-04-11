@@ -122,19 +122,29 @@ filewrite(struct file *f, char *addr, int n)
   if(f->writable == 0)
     return -1;
 
+  
   // JTM - Check if the offset is bigger than the file size
   if(f->off > f->ip->size){
-	// Add in 0's to fill in holes.
+	// Add in 0's to fill in holes by supplying it with an empty array of the size difference.
 	int byteDiff = f->off - f->ip->size;
-	
+	char emptyBuffer[byteDiff];
+
+	for(int i = 0; i < byteDiff; i++){
+		emptyBuffer[i] = '\0';
+	}
+
+	// Begin transaction (we are writing to disk so we must protect our write)
 	begin_op();
 	ilock(f->ip);
+	
+	// Write the empty array
+	writei(f->ip, emptyBuffer, f->off, byteDiff);
 
-	writei(f->ip, '\0', f->off, byteDiff);
-
+	// Close the transaction
 	iunlock(f->ip);
 	end_op();
 
+	// Update the file size
 	f->ip->size += byteDiff;
   }
 
