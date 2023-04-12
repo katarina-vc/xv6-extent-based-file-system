@@ -39,14 +39,19 @@ argfd(int n, int *pfd, struct file **pf)
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
 static int
-fdalloc(struct file *f)
+fdalloc(struct file *f, struct symLinkFile *sfl)
 {
   int fd;
   struct proc *curproc = myproc();
 
   for(fd = 0; fd < NOFILE; fd++){
     if(curproc->ofile[fd] == 0){
-      curproc->ofile[fd] = f;
+      // Project 4 - Part 2: Add file descriptor allocation for symlink files.
+      if(sfl != NULL) {
+        curproc->oSymfile[fd] = sfl;
+      } else {
+        curproc->ofile[fd] = f;
+      }
       return fd;
     }
   }
@@ -61,7 +66,7 @@ sys_dup(void)
 
   if(argfd(0, 0, &f) < 0)
     return -1;
-  if((fd=fdalloc(f)) < 0)
+  if((fd=fdalloc(f, NULL)) < 0)
     return -1;
   filedup(f);
   return fd;
@@ -262,7 +267,7 @@ bad:
 }
 
 static struct inode*
-create(char *path, short type, short major, short minor, char *symLinkTargetPath)
+create(char *path, short type, short major, short minor)
 {
   struct inode *ip, *dp;
   char name[DIRSIZ];
@@ -296,7 +301,7 @@ create(char *path, short type, short major, short minor, char *symLinkTargetPath
   ilock(ip);
   // check if type if a symlink
   if(type == T_SYMLINK) {
-    cprintf("\nwe have a symlink!\n");
+    cprintf("\ncreate: we have a symlink!\n");
   }
   ip->major = major;
   ip->minor = minor;
@@ -341,14 +346,13 @@ sys_open(void)
   int fd, omode;
   struct file *f;
   struct inode *ip;
-  char targetBuf[DIRSIZ];
   
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
 
   begin_op();
   if(omode & O_CREATE){
-    ip = create(path, T_FILE, 0, 0, NULL);
+    ip = create(path, T_FILE, 0, 0);
     if(ip == 0){
       end_op();
       return -1;
@@ -364,29 +368,79 @@ sys_open(void)
       end_op();
       return -1;
     }
-
-    // deleteme modifyme strt
-    if (ip->type == T_SYMLINK) {
-      // lock the inode
-      cprintf("\npath things: %s\n", path);
-
-      // get the target path from the inode
-      // readi() reads data from an inode structure
-      // the ip is a pointer to the inode structure being read
-      // dst is the a pointer to the buffer where data will be stored
-      // off is the offset within the file to start reading at
-      // and n is the number of bytes to read
-      readi(ip, targetBuf, 0, 7);
-      cprintf("\ntargetBuf things: %s\n", targetBuf);
-      path = "/0";
-      strcpy2(path, targetBuf);
-      cprintf("\npath thing 2s: %s\n", path);
-      iunlockput(ip); // releases and free the lock on ip
-  }
-// deleteme modifyme end
   }
 
-  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
+  // Project 4 - Part 2 - Stuff n thingz.
+  // Check for SymLinks, if so then we open the symLinkFile, and then find it's target file, and then actually open that target file.
+  if (ip->type == T_SYMLINK && omode != O_NOFOLLOW) {
+      // cprintf("\npath before things: %s\n", path);
+      // cprintf("\naddr things: %s\n", (char *)ip->addrs);
+
+      struct file *targetFile;
+      struct inode *indexNodeTarget;
+      // Read our symlink's index node addrs (where we stored the target's path) to get the index node for our actual target.
+      // aka... read the symlink!
+      if((indexNodeTarget = namei((char*)ip->addrs)) == 0) {
+        // Something went wrong. Project 4 Requirements: If the symlink's target file does not exist, then open fails. 
+        cprintf("Symlink open error: Something went wrong finding the symlink target. Target file may not exist.");
+        end_op();
+        return -1;
+      }
+
+      iunlock(ip); // we no longer need the symlink's index node.
+
+      if((targetFile = filealloc()) == 0 || (fd = fdalloc(targetFile, NULL)) < 0) {
+          // Something went wrong.
+          cprintf("Symlink file open error: Something went wrong opening the target file.");
+
+          if(targetFile) {
+            fileclose(targetFile);
+          }
+
+          iunlockput(indexNodeTarget);
+          end_op();
+          return -1;
+      } 
+
+      end_op();
+
+      targetFile->type = FD_INODE;
+      targetFile->ip = indexNodeTarget;
+      targetFile->off = 0;
+      targetFile->readable = !(omode & O_WRONLY);
+      targetFile->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+      return fd;
+  } else if (ip->type == T_SYMLINK && omode == O_NOFOLLOW) { // end if() for symlink type
+  // When the O_NOFOLLOW flag is specified, open the symlink and not the symlink's target file.
+      cprintf("onofolo\n");
+      iunlock(ip); // we no longer need the symlink's index node.
+      
+      struct symLinkFile *targetFile;
+      if((targetFile = symLinkFileAlloc()) == 0 || (fd = fdalloc(NULL, targetFile)) < 0) {
+          // Something went wrong.
+          cprintf("Symlink file open error: Something went wrong opening the symlink file.");
+
+          if(targetFile) {
+            fileclose(targetFile);
+          }
+
+          iunlockput(indexNodeTarget);
+          end_op();
+          return -1;
+      } 
+
+      end_op();
+
+      targetFile->type = FD_INODE;
+      targetFile->ip = indexNodeTarget;
+      targetFile->off = 0;
+      targetFile->readable = !(omode & O_WRONLY);
+      targetFile->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+      return fd;
+  } // end if() for symlink type
+
+
+  if((f = filealloc()) == 0 || (fd = fdalloc(f, NULL)) < 0){
     if(f)
       fileclose(f);
     iunlockput(ip);
@@ -410,7 +464,7 @@ sys_mkdir(void)
   struct inode *ip;
 
   begin_op();
-  if(argstr(0, &path) < 0 || (ip = create(path, T_DIR, 0, 0, NULL)) == 0){
+  if(argstr(0, &path) < 0 || (ip = create(path, T_DIR, 0, 0)) == 0){
     end_op();
     return -1;
   }
@@ -430,7 +484,7 @@ sys_mknod(void)
   if((argstr(0, &path)) < 0 ||
      argint(1, &major) < 0 ||
      argint(2, &minor) < 0 ||
-     (ip = create(path, T_DEV, major, minor, NULL)) == 0){
+     (ip = create(path, T_DEV, major, minor)) == 0){
     end_op();
     return -1;
   }
@@ -502,7 +556,7 @@ sys_pipe(void)
   if(pipealloc(&rf, &wf) < 0)
     return -1;
   fd0 = -1;
-  if((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0){
+  if((fd0 = fdalloc(rf, NULL)) < 0 || (fd1 = fdalloc(wf, NULL)) < 0){
     if(fd0 >= 0)
       myproc()->ofile[fd0] = 0;
     fileclose(rf);
@@ -515,44 +569,37 @@ sys_pipe(void)
 }
 
 // KC - Project 4 SymLink System Call implementation
-/*
-Implement the symlink(target, path) system call to create a new symbolic link at path that refers to target. 
-Note that target does not need to exist for the system call to succeed. You will need to choose somewhere to 
-store the target path of a symbolic link, for example, in the inode's data blocks. symlink should return an 
-integer representing success (0) or failure (-1) similar to link and unlink.
-*/
-int
-sys_symlink(void)
-{
-  // The symlink system call takes in two args, char* target, and char* path. 
-  // target: the name/location of the file we are trying to link (we are not handling symlink for directories) (this should be
-  // the name of the file we are trying to link or path to that file we are trying to link)
-  // path: the symlinks nickname (aka pathname) (aka new pathname)
-  // essentially when given the path (nickname), we go look up the actual file at the target
-  char *path;
-  char *target;
+int sys_symlink(void) {
+  char *path; // symlink's "nickname"
+  char *target; // the actual path to the target file the symlink accesses
 
-  // get the argz
-  if(argstr(0, &target) < 0 || argstr(1, &path) < 0) {
-    return -1; // symlink returns -1 for failure
+  // Get target and path symlink arguments
+  if (argstr(0, &target) < 0 || argstr(1, &path) < 0) {
+    cprintf("\nSymlink Error: Something went wrong with the symlink() arguments.\n");
+    return -1; // return -1 on failure. 
   }
 
-  cprintf("\ntarget: %s\n", target);
-  cprintf("path: %s\n", path);
+  // Since we're dealing with files, make sure the path/target is less than 14 characters (aka the xv6 DIRSIZ)
+  if(strlen(target) > DIRSIZ || strlen(path) > DIRSIZ) {
+    cprintf("\nSymlink Error: Please make your path or target less than 14 characters.\n");
+    return -1; // return -1 on failure.
+  }
 
-  // Add transaction statements
+  // Create the symlink's index node, this must be done within a transaction or xv6 will throw an error >:0.
   begin_op();
-
-  struct inode *ip = create(path, T_SYMLINK, 0, 0, NULL);
-  // writei() writes data to an inode structure
-  // the ip arg is the inode structure being written to
-  // buf is the pointer to the buffer containing the data to write
-  // uint off is the offset within the file to start writing
-  // and n is the number of bytes to write
-  // writei(ip,&len, 0, sizeof(int));
-  writei(ip, target, 0, strlen(target));
-  iunlockput(ip);
+  struct inode *symLinkIndexNode = create(path, T_SYMLINK, 0, 0);
   end_op();
-  // symlink returns 0 for success
-  return 0;
+  
+  // Create and allocate a new symlink struct
+  struct symLinkFile *symLinkFile;
+  symLinkFile = symLinkFileAlloc();
+
+  cprintf("creating symlink target: %s\n", target);
+
+  safestrcpy((char*)symLinkIndexNode->addrs, target, DIRSIZ);
+  iunlock(symLinkIndexNode); // fixme- kc - why do we need to unluck here where do we lock it in the first place ??
+
+  symLinkFile->ip = symLinkIndexNode;
+  
+  return 0; // return 0 on success woot woot!
 }

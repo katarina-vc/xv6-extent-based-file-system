@@ -8,6 +8,11 @@ struct file {
   uint off;
 };
 
+struct symLinkFile {
+  int ref; // reference count
+  struct inode *ip;
+};
+
 
 // in-memory copy of an inode
 struct inode {

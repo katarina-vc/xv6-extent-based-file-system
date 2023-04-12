@@ -29,39 +29,40 @@ The user program, testSymLink, will then create the symlink, and perform various
 #include "stddef.h"
 #include "syscall.h"
 
+char buf[512];
+
 // start main()
-int main(int argc, char *argv[]) {
- 
+int main(int argc, char *argv[]) {  
     char *target = "README";
     char *path = "symB";
-    struct stat statObj; 
-    char bufferStr[512];
 
-    int symlinksucc = symlink(target, path);
+    int symlinkTest = symlink(target, path);
 
-    printf(1, "symlinking was successful: %d\n", symlinksucc);
+    printf(1, "symlinking was successful: %d\n", symlinkTest);
+  
+    int fileDescriptor; 
 
-    int fd = open(path, 0);
-        if (fd < 0) {
-            printf(2, "Cannot open :((((())))) %s\n", path);
-            exit();
+    // Test "opening" the symlink.
+    if((fileDescriptor = open(path, 0)) < 0){
+        printf(2, "Symlink Test Error: cannot open %s\n", path);
+        return -1;
+    }
+
+    // Upon success of opening symlink (which should actually be accessing our target if all went well), print out the file
+    // Code below is from xv6's cat.c file.
+    int n;
+    while((n = read(fileDescriptor, buf, sizeof(buf))) > 0) {
+        if (write(1, buf, n) != n) {
+        printf(1, "test: write error\n");
+
+        exit();
         }
-
-            // Get the status information for the starting point folder path
-    if(fstat(fd, &statObj) < 0) {
-            printf(1, "find failed: Cannot get status information about: %s\n", path);
-            close(fd);
-            exit();
     }
-    if (stat(bufferStr, &statObj) < 0) {
-      printf(2, "find failed: Cannot get the status of %s\n", bufferStr);
-                  close(fd);
-            exit();
+    if(n < 0){
+        printf(1, "test: read error\n");
+        exit();
     }
 
-    printf(1, "bufferStr: %s\n", bufferStr);
-
-        close(fd);
-
+    close(fileDescriptor);
 	exit();
 } // end main()
