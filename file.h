@@ -1,5 +1,5 @@
 struct file {
-  enum { FD_NONE, FD_PIPE, FD_INODE } type;
+  enum { FD_NONE, FD_PIPE, FD_INODE, SYMLINK } type;
   int ref; // reference count
   char readable;
   char writable;
@@ -11,6 +11,7 @@ struct file {
 struct symLinkFile {
   int ref; // reference count
   struct inode *ip;
+  char *path;
 };
 
 

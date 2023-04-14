@@ -28,6 +28,7 @@ The user program, testSymLink, will then create the symlink, and perform various
 #include "fs.h"
 #include "stddef.h"
 #include "syscall.h"
+#include "fcntl.h"
 
 char buf[512];
 
@@ -36,17 +37,25 @@ int main(int argc, char *argv[]) {
     char *target = "README";
     char *path = "symB";
 
+    char *recursiveSymLinkName = "recurs";
+    
     int symlinkTest = symlink(target, path);
 
-    printf(1, "symlinking was successful: %d\n", symlinkTest);
-  
+    int symlinkTest2 = symlink(path, recursiveSymLinkName);
+
+    printf(1, "symlinking1 was successful: %d\n", symlinkTest);
+      printf(1, "symlinking2 was successful: %d\n", symlinkTest2);
+
     int fileDescriptor; 
 
     // Test "opening" the symlink.
-    if((fileDescriptor = open(path, 0)) < 0){
+    if((fileDescriptor = open(recursiveSymLinkName, O_RDONLY)) < 0){
         printf(2, "Symlink Test Error: cannot open %s\n", path);
         return -1;
     }
+
+        printf(1, "opening file\n");
+
 
     // Upon success of opening symlink (which should actually be accessing our target if all went well), print out the file
     // Code below is from xv6's cat.c file.
