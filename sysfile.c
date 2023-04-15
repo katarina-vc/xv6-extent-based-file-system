@@ -328,8 +328,6 @@ void createSymLink(char *path, char *target, struct inode *symLinkIndexNode) {
 
     symLinkFile = filealloc();
     memmove((char*)symLinkIndexNode->addrs, target, DIRSIZ);
-
-    // safestrcpy((char*)symLinkIndexNode->addrs, target, DIRSIZ);
     iunlock(symLinkIndexNode);
 
     symLinkFile->ip = symLinkIndexNode;
