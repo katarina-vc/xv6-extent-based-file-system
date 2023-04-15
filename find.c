@@ -133,7 +133,6 @@ void findBothFlags(struct findCommandStruct findCmd, struct stat statObj, char *
     memmove(p, direntObj.name, DIRSIZ);
     p[DIRSIZ] = 0;
 
-
     // Get the status for the current file, else move on to the next file.
     if(stat(buf, &statObj) < 0){
       printf(1, "find failed: Cannot get the status of %s\n", buf);
