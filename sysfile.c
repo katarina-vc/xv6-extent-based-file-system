@@ -114,17 +114,6 @@ sys_fstat(void)
   return filestat(f, st);
 }
 
-char*
-strcpy2(char *s, const char *t)
-{
-  char *os;
-
-  os = s;
-  while((*s++ = *t++) != 0)
-    ;
-  return os;
-}
-
 int sys_link(void) {
   char name[DIRSIZ], *new, *old;
   struct inode *dp, *ip;
@@ -340,6 +329,7 @@ void createSymLink(char *path, char *target, struct inode *symLinkIndexNode) {
     symLinkFile = filealloc();
     memmove((char*)symLinkIndexNode->addrs, target, DIRSIZ);
 
+    // safestrcpy((char*)symLinkIndexNode->addrs, target, DIRSIZ);
     iunlock(symLinkIndexNode);
 
     symLinkFile->ip = symLinkIndexNode;

@@ -14,7 +14,6 @@ struct devsw devsw[NDEV];
 struct {
   struct spinlock lock;
   struct file file[NFILE];
-  struct symLinkFile symLinkFile[NFILE];
 } ftable;
 
 void
@@ -31,24 +30,6 @@ filealloc(void)
 
   acquire(&ftable.lock);
   for(f = ftable.file; f < ftable.file + NFILE; f++){
-    if(f->ref == 0){
-      f->ref = 1;
-      release(&ftable.lock);
-      return f;
-    }
-  }
-  release(&ftable.lock);
-  return 0;
-}
-
-// Allocate a symlink soft file structure.
-struct symLinkFile*
-symLinkFileAlloc(void)
-{
-  struct symLinkFile *f;
-
-  acquire(&ftable.lock);
-  for(f = ftable.symLinkFile; f < ftable.symLinkFile + NFILE; f++){
     if(f->ref == 0){
       f->ref = 1;
       release(&ftable.lock);

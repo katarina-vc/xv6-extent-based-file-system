@@ -27,7 +27,6 @@ int             exec(char*, char**);
 
 // file.c
 struct file*    filealloc(void);
-struct symLinkFile*    symLinkFileAlloc(void);
 void            fileclose(struct file*);
 struct file*    filedup(struct file*);
 void            fileinit(void);

@@ -8,13 +8,6 @@ struct file {
   uint off;
 };
 
-struct symLinkFile {
-  int ref; // reference count
-  struct inode *ip;
-  char *path;
-};
-
-
 // in-memory copy of an inode
 struct inode {
   uint dev;           // Device number
