@@ -53,5 +53,21 @@ SymLink Test 5
 Test 5 demonstrates that we have a recursive depth to our symlinks of 10. Going off of our 10 symlinks created during test 4, we create one more symlinks, "sym11", which points to our top level symlink, "sym10", from test 4. This would make 11 symlinks that all point to each other respectively, which is past our depth limit. This test is designed to fail on purpose to validate that our depth limit is working. Upon trying to open "sym11", our call fails as it goes past our depth limit.
 
 ### Part 3 - Adding Large File Support
+In order to implement the support for the large file, we had to perform the following steps: 
+- Create a function that would be able to write large files (for testing purposes)
+- Verify that xv6 does not have pre-built support for large files
+- Implement a double inode system that would support the large files 
+
+<u>Function that would create large files</u>
+We have created a function that can write a large file. As the guidelines state, we created a function that allocated 16,523 blocks. This function can be reviewed in the file `writebigfile. c` and can be utilized by calling `writebigfile` within the xv6 terminal. After using the function, a new file will appear. Its size would be `16523*512 = 8,459,776` bytes. 
+
+<u>Verification that xv6 does not have pre-built support</u>
+To verify that xv6 does not have pre-built support, we decided to run our command in the xv6. As expected, the xv6 failed to support the large file and panicked instead. This can be seen in the following screenshot. 
+![demo](/Project%204%20Screenshots/before_implementation.png)
+
+<u>Doubley inode system</u>
+Now is the time to implement a system capable of supporting large files. To make this possible, we changed files 'fs. h' to enable an extra bit allocated for the additional indirect block. Then, we modified the `fs. c` file, specifically, the `bmap()` function, to utilize the added bit. 
+After making the modifications, we tested our code. It may take some time (about 30 seconds) to create the large file, but the file would be created successfully, and it can be stored inside of the current working directory like in the image below
+![demo](/Project%204%20Screenshots/after_implementation.png)
 
 ### Part 4 - Adding Extent-based File Support
