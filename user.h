@@ -33,6 +33,9 @@ int get_sched_priority(int);
 //AI - Add in system calls for FIFO scheduler 
 int fifo_position(int pid);
 
+// KC - Project 4 symlink system call
+int symlink(char*, char*);
+
 //JTM - Add in system call for lseek
 int lseek(int, int);
 

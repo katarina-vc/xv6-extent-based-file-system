@@ -98,8 +98,11 @@ fileread(struct file *f, char *addr, int n)
 {
   int r;
 
-  if(f->readable == 0)
-    return -1;
+  if(f->readable == 0) {
+    cprintf("file is not readable\n");
+        return -1;
+  }
+    
   if(f->type == FD_PIPE)
     return piperead(f->pipe, addr, n);
   if(f->type == FD_INODE){
@@ -109,6 +112,15 @@ fileread(struct file *f, char *addr, int n)
     iunlock(f->ip);
     return r;
   }
+
+  // Project 4 - Part 2 - Read a symlink
+  if(f->type == SYMLINK) {
+    ilock(f->ip);
+      cprintf("%s\n", (char*)f->ip->addrs);
+    iunlock(f->ip);
+    return 0;
+  }
+ 
   panic("fileread");
 }
 
