@@ -8,6 +8,7 @@ struct file {
   uint off;
 };
 
+
 // in-memory copy of an inode
 struct inode {
   uint dev;           // Device number
@@ -21,7 +22,7 @@ struct inode {
   short minor;
   short nlink;
   uint size;
-  uint addrs[NDIRECT+1];
+  uint addrs[NDIRECT+2];  //Changed to allow for a double indirect block
 };
 
 // table mapping major device number to
@@ -34,3 +35,5 @@ struct devsw {
 extern struct devsw devsw[];
 
 #define CONSOLE 1
+
+

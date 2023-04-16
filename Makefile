@@ -187,6 +187,7 @@ UPROGS=\
   	_find\
 	_sleep\
 	_uniq\
+	_writebigfile\
 	_testSymLink\
 	_fsproj4\
 
