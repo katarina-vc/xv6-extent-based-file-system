@@ -67,8 +67,7 @@ gets(char *buf, int max)
   return buf;
 }
 
-int
-stat(const char *n, struct stat *st)
+int stat(const char *n, struct stat *st)
 {
   int fd;
   int r;

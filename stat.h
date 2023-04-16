@@ -2,6 +2,7 @@
 #define T_FILE 2   // File
 #define T_DEV  3   // Device
 #define T_SYMLINK 4 // KC - Project 4 Symlink file type
+#define T_EXTENT 5 // Project 4 - Part 4 
 
 struct stat {
   short type;  // Type of file

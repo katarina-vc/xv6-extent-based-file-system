@@ -72,7 +72,7 @@ fdalloc(struct file *f)
 
   for(fd = 0; fd < NOFILE; fd++){
     if(curproc->ofile[fd] == 0){
-        curproc->ofile[fd] = f;
+      curproc->ofile[fd] = f;
       return fd;
     }
   }
@@ -370,7 +370,7 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     return 0;
   }
    
-  ilock(dp); 
+  ilock(dp);
 
   if((ip = dirlookup(dp, name, 0)) != 0) {
 
@@ -384,8 +384,13 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     return 0; // leave
   }
 
+  // Project 4 Part 4
+  if(type == T_EXTENT) {
+    
+  }
+  
   if((ip = ialloc(dp->dev, type)) == 0) {
-      panic("create: ialloc");
+    panic("create: ialloc");
   }
 
 
@@ -395,7 +400,7 @@ static struct inode* create(char *path, short type, short major, short minor, ch
   ip->minor = minor;
   ip->nlink = 1;
 
-  iupdate(ip); 
+  iupdate(ip);
 
  // creates a directory specific inode
   if(type == T_DIR){  // Create . and .. entries.
@@ -403,11 +408,11 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     iupdate(dp);
     // No ip->nlink++ for ".": avoid cyclic ref count.
     if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
-      panic("create dots"); 
+      panic("create dots");
   }
 
   if(dirlink(dp, name, ip->inum) < 0) {
-        panic("create: dirlink");
+    panic("create: dirlink");
   }
 
   iunlockput(dp); // free and release the inode
@@ -425,7 +430,7 @@ int sys_open(void) {
   int fd, omode;
   struct file *f;
   struct inode *ip;
-  
+
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0) {
     return -1;
   }
@@ -434,21 +439,28 @@ int sys_open(void) {
 
   if(omode & O_CREATE) {
         ip = create(path, T_FILE, 0, 0, NULL);
-        if(ip == 0){
-          end_op();
-          return -1;
-        }
+    if(ip == 0){
+      end_op();
+      return -1;
+    }
+  } else if (omode & O_EXTENT) { // Project 4 Part 4
+    ip = create(path, T_EXTENT, 0, 0, NULL);
+
+    if(ip == 0){
+      end_op();
+      return -1;
+    }
   } else {
-        if((ip = namei(path)) == 0){
-          end_op();
-          return -1;
-        }
-        ilock(ip);
-        if(ip->type == T_DIR && omode != O_RDONLY){
-          iunlockput(ip);
-          end_op();
-          return -1;
-        }
+    if((ip = namei(path)) == 0){
+      end_op();
+      return -1;
+    }
+    ilock(ip);
+    if(ip->type == T_DIR && omode != O_RDONLY){
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
   } // end if-else omode create
 
   // Check for SymLinks, if so then we open the symLinkFile, and then find it's target file, and then actually open that target file.
