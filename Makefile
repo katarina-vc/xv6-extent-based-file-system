@@ -188,6 +188,7 @@ UPROGS=\
 	_sleep\
 	_uniq\
 	_testSymLink\
+	_fsproj4\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

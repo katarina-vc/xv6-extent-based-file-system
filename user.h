@@ -26,15 +26,18 @@ int uptime(void);
 int time_scheduled(int);
 void printProcessTable(int);
 
-//JTM - Add in more system calls
+//JTM - Add in system calls for priority scheduler
 int set_sched_priority(int);
 int get_sched_priority(int);
 
-//AI - Add in more system calls 
+//AI - Add in system calls for FIFO scheduler 
 int fifo_position(int pid);
 
 // KC - Project 4 symlink system call
 int symlink(char*, char*);
+
+//JTM - Add in system call for lseek
+int lseek(int, int);
 
 // ulib.c
 int stat(const char*, struct stat*);

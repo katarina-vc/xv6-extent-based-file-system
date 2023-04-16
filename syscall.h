@@ -26,3 +26,5 @@
 #define SYS_fifo_position 25
 #define SYS_printProcessTable 26
 #define SYS_symlink 27
+#define SYS_lseek 28
+

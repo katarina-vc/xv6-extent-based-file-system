@@ -16,6 +16,33 @@
 #include "fcntl.h"
 #include "stddef.h"
 
+
+// JTM - Implement system call for lseek
+int
+sys_lseek(void){
+	// Variable initialization
+	int fileDescriptor;
+	int offset;
+	struct file *filePointer;
+	
+	// Verify that the arguments are good.
+	if(argint(0, &fileDescriptor) < 0 || argint(1, &offset) < 0){
+		return -1;
+	}
+
+	// Verify we have a valid file descriptor for the current process
+	if((filePointer = myproc()->ofile[fileDescriptor]) == 0){
+		return -1;
+	}
+
+	// Add the offset to the current offset
+	filePointer->off += offset;
+
+	// Return the new offset
+	return filePointer->off;
+}
+
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int

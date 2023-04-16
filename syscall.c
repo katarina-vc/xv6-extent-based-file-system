@@ -106,15 +106,19 @@ extern int sys_uptime(void);
 extern int sys_time_scheduled(void);
 extern int sys_printProcessTable(void);
 
-//JTM - Add in system calls
+//JTM - Add in priority scheduler system calls
 extern int sys_set_sched_priority(void);
 extern int sys_get_sched_priority(void);
 
-//AI - Add in system calls 
+//AI - Add in FIFO scheduler system calls 
 extern int sys_fifo_position(void);
 
 // KC - Symlink system call project 4
 extern int sys_symlink(void);
+
+//JTM - Add lseek system call
+extern int sys_lseek(void);
+
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -144,6 +148,7 @@ static int (*syscalls[])(void) = {
 [SYS_fifo_position]	sys_fifo_position,
 [SYS_printProcessTable] sys_printProcessTable,
 [SYS_symlink] sys_symlink,
+[SYS_lseek] sys_lseek,
 };
 
 void
