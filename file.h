@@ -1,5 +1,5 @@
 struct file {
-  enum { FD_NONE, FD_PIPE, FD_INODE } type;
+  enum { FD_NONE, FD_PIPE, FD_INODE, SYMLINK } type;
   int ref; // reference count
   char readable;
   char writable;
@@ -35,3 +35,5 @@ struct devsw {
 extern struct devsw devsw[];
 
 #define CONSOLE 1
+
+

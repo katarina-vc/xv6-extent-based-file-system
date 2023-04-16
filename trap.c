@@ -93,6 +93,7 @@ allocPage(pde_t *pgdir, char* va, uint size)
 	// Allocate pages up to the size of the process (This is similar to allocuvm()).
 	for(; a < size; a += PGSIZE){
 		// cprintf("Allocating address 0x%x.\n", a);
+		//cprintf("Allocating address 0x%x.\n", a);
   		mem = kalloc();
   
   		if(mem == 0){
