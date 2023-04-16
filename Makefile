@@ -190,6 +190,7 @@ UPROGS=\
 	_ptime\
 	_fifo_position\
 	_priorityTest\
+	_writebigfile\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

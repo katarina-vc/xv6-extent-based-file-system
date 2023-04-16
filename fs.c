@@ -373,8 +373,10 @@ static uint
 bmap(struct inode *ip, uint bn)
 {
   uint addr, *a;
+  // short entry, offset;
   struct buf *bp;
 
+  // Implementation of direct system
   if(bn < NDIRECT){
     if((addr = ip->addrs[bn]) == 0)
       ip->addrs[bn] = addr = balloc(ip->dev);
@@ -382,6 +384,7 @@ bmap(struct inode *ip, uint bn)
   }
   bn -= NDIRECT;
 
+  // Implementation of single indirect system
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
@@ -390,6 +393,32 @@ bmap(struct inode *ip, uint bn)
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
       a[bn] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+    return addr;
+  }
+  bn -= NINDIRECT;
+
+  // Implementation of double indirect system
+  if(!(bn >= D_INDIRECT))
+  {
+    int n_bit=1;  // do not change, please
+    if(!(addr = ip->addrs[NDIRECT + n_bit]))
+      ip->addrs[NDIRECT + n_bit] = addr = balloc(ip->dev);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if(!(addr = a[bn / D_INDIRECT_INSTANCE]))
+    {
+      a[bn / D_INDIRECT_INSTANCE] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if(!(addr = a[bn % D_INDIRECT_INSTANCE]))
+    {
+      a[bn % D_INDIRECT_INSTANCE] = addr = balloc(ip->dev);
       log_write(bp);
     }
     brelse(bp);
