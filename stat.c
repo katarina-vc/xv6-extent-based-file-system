@@ -35,13 +35,23 @@ int main(int argc, char *argv[])
     // Get the status for the current file
     if(stat(buf, &statObj) < 0) {
         printf(1, "stat failed: Cannot get the status.\n");
+        exit();
     }
 
-    printf(1, "stat stuff type: %d\n", statObj.type);
-    printf(1, "stat stuff size: %d\n", statObj.size);
-    printf(1, "stat stuff dev: %d\n", statObj.dev);
-    printf(1, "stat stuff ino: %d\n", statObj.ino);    
-    printf(1, "stat stuff nlink: %d\n", statObj.nlink);
+        // each inode has an array of 13 block addresses called addrs which point to disk sectors that store the contents of file or directory
+    // the first 12 block addresses represetn direct block pointers, which point to the first 12 disk sectors of the file or directory
+    // the 13th block address is an indirect block pointer, which points to a block containing adidtional block pointers that point to disk sectors beyond the first 12
+
+
+    printf(1, "stat type: %d\n", statObj.type);
+    printf(1, "stat size: %d\n", statObj.size);
+    printf(1, "stat dev: %d\n", statObj.dev);
+    printf(1, "stat ino: %d\n", statObj.ino);    
+    printf(1, "stat nlink: %d\n", statObj.nlink);
+
+    for(int i = 0; i < 11; i++){
+        printf(1,"Disk Sector Block direct pointer address %d: %d\n", i+1, statObj.addrs[i]);
+    }
 
     exit();
 } // end main()

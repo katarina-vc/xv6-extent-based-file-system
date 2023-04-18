@@ -492,7 +492,7 @@ itrunc(struct inode *ip)
 }
 
 // Copy stat information from inode.
-// Caller must hold ip->lock.
+// Caller must hold ip->lock. stathere
 void
 stati(struct inode *ip, struct stat *st)
 {
@@ -501,6 +501,13 @@ stati(struct inode *ip, struct stat *st)
   st->type = ip->type;
   st->nlink = ip->nlink;
   st->size = ip->size;
+
+  // get each direct block address in our addrs array
+  if(st->type == T_FILE) {
+    for(int i = 0; i < NDIRECT; i++){
+      st->addrs[i] = ip->addrs[i];
+    }
+  }
 }
 
 //PAGEBREAK!
