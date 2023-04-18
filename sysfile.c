@@ -383,15 +383,30 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     iunlockput(ip); // free and release the inode 
     return 0; // leave
   }
-
-  // Project 4 Part 4
-  if(type == T_EXTENT) {
-    
-  }
   
   if((ip = ialloc(dp->dev, type)) == 0) {
     panic("create: ialloc");
   }
+
+  // Project 4 Part 4
+  if(type == T_EXTENT) {
+        // short entry, offset;
+        struct buf *bp;
+
+        // Implementation of direct system
+        // if the logical/virtual block number (bn) falls within the direct block pointers, bmap will
+        // return the physical block number from the inodes direct block point pointer array (the dinodez)
+        for(int i = 0; i < NDIRECT; i++) {
+          // NDIRECT is the number of direct pointer addresses xv6 allows which is like 11
+          // the if statement right below here checks if this block has even been allocated on the physical disk yet.
+          if((addr = ip->addrs[bn]) == 0) {
+            ip->addrs[bn] = addr = balloc(ip->dev);     // if not, then we want to allocate it on the disk.
+          }
+
+          return addr; // after allocating bc it didnt exist, or just finding it, we return it.
+        }
+  }
+
 
 
   ilock(ip);

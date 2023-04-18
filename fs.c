@@ -60,16 +60,17 @@ balloc(uint dev)
   struct buf *bp;
 
   bp = 0;
+  // read all the blocks on the superblock (the xv6 mega block of all blocks)
   for(b = 0; b < sb.size; b += BPB){
     bp = bread(dev, BBLOCK(b, sb));
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
       m = 1 << (bi % 8);
-      if((bp->data[bi/8] & m) == 0){  // Is block free?
+      if((bp->data[bi/8] & m) == 0){  // Is block free? if soo....
         bp->data[bi/8] |= m;  // Mark block in use.
-        log_write(bp);
+        log_write(bp); // write the updated block map back to the physical disk
         brelse(bp);
         bzero(dev, b + bi);
-        return b + bi;
+        return b + bi; // return the block number of the newly allocated blocky block
       }
     }
     brelse(bp);
@@ -232,8 +233,14 @@ iExtentAlloc(uint dev, short type)
       memset(dip, 0, sizeof(*dip));
       dip->type = type;
       log_write(bp);   // mark it allocated on the disk
-      brelse(bp);
-      return iget(dev, inum);
+      brelse(bp); // block release, indicates that the buffer obtained from bread() is no longer needed. reclaims buffer for reuse. maintains buffer cache.
+
+      // ok so for extent based file systems, we want a continguous group of blocks so lets just allocate them all when we allocate
+      // a new extent file namsayn.
+      // first slot is the pointer to our shits 
+        uint addr, *a;
+
+      return iget(dev, inum); // gets inode from the disk based on its inode number. returns the in-memory inode.
     }
     brelse(bp);
   }
@@ -397,18 +404,31 @@ iunlockput(struct inode *ip)
 
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
+// KC - bmap maps a block number within a file to a physical block number on the disk
+// KC - used during file read or write operatings to determine the correct disk location for a given file offset
+// param 1 = pointer to inode, param 2 bn = logical/virtual block number within the file
+// if bmap is called during a write operation and the block hasn't been allocated yet, then bmap allocates it and updates the inode block pointers
 static uint
 bmap(struct inode *ip, uint bn)
 {
+   // ip == index node of file we are checking out
+   // bn == block number aka the virtual block number we are searching for its best buddy physical block number
+
   uint addr, *a;
   // short entry, offset;
   struct buf *bp;
 
   // Implementation of direct system
+  // if the logical/virtual block number (bn) falls within the direct block pointers, bmap will
+  // return the physical block number from the inodes direct block point pointer array (the dinodez)
   if(bn < NDIRECT){
-    if((addr = ip->addrs[bn]) == 0)
-      ip->addrs[bn] = addr = balloc(ip->dev);
-    return addr;
+    // NDIRECT is the number of direct pointer addresses xv6 allows which is like 11
+    // the if statement right below here checks if this block has even been allocated on the physical disk yet.
+    if((addr = ip->addrs[bn]) == 0) {
+      ip->addrs[bn] = addr = balloc(ip->dev);     // if not, then we want to allocate it on the disk.
+    }
+
+    return addr; // after allocating bc it didnt exist, or just finding it, we return it.
   }
   bn -= NDIRECT;
 

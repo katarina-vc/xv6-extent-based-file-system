@@ -93,6 +93,8 @@ bget(uint dev, uint blockno)
 }
 
 // Return a locked buf with the contents of the indicated block.
+// block read
+// reads a disk block into memory, takes block number as arg and returns a pointer to the buf to read the block data
 struct buf*
 bread(uint dev, uint blockno)
 {
@@ -102,7 +104,7 @@ bread(uint dev, uint blockno)
   if((b->flags & B_VALID) == 0) {
     iderw(b);
   }
-  return b;
+  return b; // return the buffer this is the actual block data for the file we are reading
 }
 
 // Write b's contents to disk.  Must be locked.
