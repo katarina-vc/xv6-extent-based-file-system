@@ -1,27 +1,4 @@
 // KC - 4/9/2023 - User Program to test Project 4 Part 2 - Adding Symlink System calls
-/*
-Testing steps to verify that the symlink is working:
-
-As a user, follow these steps
-1. Create a folder:
-    mkdir a
-2. Create a file in that folder:
-    echo > a/b
-3. Run this user program "testSymLink". The "testSymLink" user program takes two args, the target and the path, to be passed to our symlink system call.
-    testSymLink a/b symB
-In this example, our target is the file "b", so send it's path "a/b" as the first argument. Thes second argument is the name we are giving our symlink and how we
-will reference the symlink.
-
-The user program, testSymLink, will then create the symlink, and perform various tests to prove it is working correctly.
-
-1. Create the symlink.
-2. Open the file.
-3. Write to the file.
-4. Read the file.
-4. Close the file.
-5. link and unlink the symlink
-*/
-
 #include "types.h"
 #include "stat.h"
 #include "user.h"
@@ -36,7 +13,8 @@ void symLinkTest1(char *target, char *path)
 {
     char buf[512];
 
-    printf(1, "\nSymlink Test 1: Prove that the symlink works in general.\n\n");
+    printf(1, "\nSymlink Test 1: Prove that the symlink works in general.\n");
+    printf(1, "Symlink Test 1: To prove that symlink() works, we will create a symlink called symA to the README file. We will then open symA, and print out its contents.. which should print out the README file contents. Running Test 1...\n\n");
 
     int symlinkTest = symlink(target, path);
 
@@ -71,6 +49,7 @@ void symLinkTest1(char *target, char *path)
         exit();
     }
 
+    printf(1, "\n\nSymlink Test 1 passed! :)\n");
     close(fileDescriptor);
 } // end symLinkTest1()
 
@@ -78,13 +57,14 @@ void symLinkTest1(char *target, char *path)
 // In this test we are creating a symlink to a non-existant file and then attempting to open it.
 void symLinkTest2(char *target, char *path)
 {
-    printf(1, "\n\nSymlink Test 2: Prove that we can create a symlink to a non-existant file. \n");
+    printf(1, "\n\nSymlink Test 2: Prove that we can create a symlink to a non-existant file. Prove that if we try to open and read our symlink, it will fail as the target does not exist. \n");
 
     int symlinkTest = symlink(target, path);
 
     if (symlinkTest < 0)
     {
         printf(1, "\nSymlink Test 2 Error: Failed to create symlink.");
+        exit();
     }
 
     int fileDescriptor;
@@ -92,7 +72,7 @@ void symLinkTest2(char *target, char *path)
     // Test "opening" the symlink. Read only flag specified.
     if ((fileDescriptor = open(path, O_RDONLY)) < 0)
     {
-        printf(2, "\nSymlink Test 2 Error: cannot open file: %s. Test 2 has passed! :)\n\n", path);
+        printf(2, "\nSymlink Test 2 Error: cannot open file: %s.\n\n Test 2 has passed! :)\n\n", path);
     }
 
     close(fileDescriptor);
@@ -103,13 +83,14 @@ void symLinkTest3(char *target, char *path)
 {
     char buf[512];
 
-    printf(1, "\nSymlink Test 3: Open a symlink using the O_NOFOLLOW flag.\n\n");
+    printf(1, "\nSymlink Test 3: Open a symlink using the O_NOFOLLOW flag. We will open a symlink called symB that targets the README file. Opening symB with the O_NOFOLLOW flag should print out the symB's contents.. which is README\n\n");
 
     int symlinkTest = symlink(target, path);
 
     if (symlinkTest < 0)
     {
-        printf(1, "Symlink Test 3 Error: Failed to create symlink.");
+        printf(1, "Symlink Test 3 Error: Failed to create symlink. Exiting...");
+        exit();
     }
 
     int fileDescriptor;
@@ -140,6 +121,7 @@ void symLinkTest3(char *target, char *path)
         exit();
     }
 
+    printf(1, "\nSymlink Test 3 passed! :)\n");
     close(fileDescriptor);
 } // end symLinkTest3()
 
@@ -153,42 +135,52 @@ void symLinkTest4(char *target) {
 
     if (symlink(target, "sym1") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
     if (symlink("sym1", "sym2") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
     if (symlink("sym2", "sym3") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
     if (symlink("sym3", "sym4") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
     if (symlink("sym4", "sym5") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
     if (symlink("sym5", "sym6") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
     if (symlink("sym6", "sym7") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
     if (symlink("sym7", "sym8") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
      if (symlink("sym8", "sym9") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     }
 
      if (symlink("sym9", "sym10") < 0) {
         printf(1, "Symlink Test 4 Error: Failed to create symlink 1.");
+        exit();
     } 
 
     int fileDescriptor; 
@@ -218,6 +210,7 @@ void symLinkTest4(char *target) {
         exit();
     }
 
+    printf(1, "\n\nSymlink Test 4 passed! :)\n");
     close(fileDescriptor);
 } // end symLinkTest4()
 
@@ -228,21 +221,71 @@ void symLinkTest5() {
 
     if (symlink("sym10", "sym11") < 0) {
         printf(1, "Symlink Test 5 Error: Failed to create symlink.");
+        exit();
     }
 
     int fileDescriptor; 
 
     // Open the top symlink, this should recursively follow the symlinks and eventually open the "target" file.
     if ((fileDescriptor = open("sym11", O_RDONLY)) < 0) {
-        printf(2, "Symlink Test 5 Error: cannot open file.\n");
+        printf(2, "Symlink Test 5 Error: cannot open file.\n\nTest 5 has passed :), this file should not be able to open since we have reached our symlink depth limit.\n");
+        close(fileDescriptor);
+    }
+} // end symLinkTest5()
+
+// Symlink Test 6 proves that system calls like link and unlink operate on the symbolic link and do not follow the symbolic link
+void symLinkTest6() {
+    int fileDescriptor; 
+    char buf[512];
+
+    printf(1, "\n\nSymlink Test 6: Prove that system calls like link and unlink operate on the symbolic link itself.\n");
+    printf(1, "Symlink Test 6: Creating a link called hardlink to symlink symA\n");
+
+    // Create the hardlink to our symlink "symA" whose target is the README file.
+    if(link("symA", "hardlink") < 0) {
+        printf(2, "Symlink Test 6: Link failed\n");
+    }
+
+    printf(1, "Successfully created the hard link to our symlink...\n");
+
+    if ((fileDescriptor = open("hardlink", O_NOFOLLOW)) < 0) {
+        printf(2, "Symlink Test 6 Error: cannot open file.\n");
+        exit();
+    }
+    printf(1, "Successfully opened the hard link... now reading the hard link ... if successful this should print out the symbolic links target file path: README\n");
+
+    // Upon success of opening symlink, print out the symlink file.
+    // Code below is from xv6's cat.c file.
+    int n;
+    while ((n = read(fileDescriptor, buf, sizeof(buf))) > 0)
+    {
+        if (write(1, buf, n) != n)
+        {
+            printf(1, "Symlink Test 6 Error: Cannot write out file.\n");
+            exit();
+        }
+    }
+    if (n < 0)
+    {
+        printf(1, "Symlink Test 6 Error: Something went wrong :(.\n");
         exit();
     }
 
-    printf(1, "Symlink Test 5 Failed: Opened the target file.\n");
+    printf(1, "\nSymlink Test 6 Part 1 has passed! We were able to successfully link to a symlink and open that hard link.\n");
+
+    printf(1, "\nTest 6 Part 2: Now we will unlink our new hard link and attempt to open and read again. This part of the test should fail.\n");
+    
+    unlink("hardlink");
+
+    int fileDescriptor2;
+         // Open the top symlink, this should recursively follow the symlinks and eventually open the "target" file.
+    if ((fileDescriptor2 = open("testLink", O_NOFOLLOW)) < 0) {
+        printf(2, "Symlink Test 6 Error: cannot open file.\n\nTest 6 Part 2 has passed :). This is a success as we have unlinked this hard link and should not be able to open it. Test 6 Part 2 Passed.\n");
+    }
 
     close(fileDescriptor);
-
-} // end symLinkTest5()
+    close(fileDescriptor2);
+}// end symLinkTest6()
 
 // start main()
 int main(int argc, char *argv[])
@@ -257,10 +300,12 @@ int main(int argc, char *argv[])
     // In this test we are creating a symlink to a non-existant file and then attempting to open it.
     printf(1, "\n\n---------------------------------------------------------------------------------------------------------------\n");
     symLinkTest2("DEADFILE", "symB");
+    unlink("symB"); // clean up
 
     // Test 3: Project 4 Part 2 Requirement Demo: "O_NOFOLLOW flags should open the symlink (and not follow the symbolic link)."
     printf(1, "\n\n---------------------------------------------------------------------------------------------------------------\n");
     symLinkTest3("README", "symC");
+    unlink("symC"); // clean up
 
     // Test 4: Project 4 - Part 2 Requirement: Recursively follow symlinks until a non-link file is reached. If links form a cycle and depth of
     // 10 is reached, then print out an error about this.
@@ -270,6 +315,24 @@ int main(int argc, char *argv[])
     // Test 5: Demonstrate that if we are in a recursive symlink loop, and a depth of 10 is already reached, we print out an error and stop.
     printf(1, "\n\n---------------------------------------------------------------------------------------------------------------\n");
     symLinkTest5();
+
+    // Test 6: Demonstrate that linking and unlinking operate on the symbolic link itself.
+    printf(1, "\n\n---------------------------------------------------------------------------------------------------------------\n");
+    symLinkTest6();
+    unlink("symA"); // clean up
+
+    // Doing some final cleanup...
+    unlink("sym1");
+    unlink("sym2");
+    unlink("sym3");
+    unlink("sym4");
+    unlink("sym5");
+    unlink("sym6");
+    unlink("sym7");
+    unlink("sym8");
+    unlink("sym9");
+    unlink("sym10");
+    unlink("sym11"); 
 
     exit();
 } // end main()
