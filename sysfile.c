@@ -300,6 +300,7 @@ int openSymLink(char* path, int omode, struct inode* ip, int depth) {
       if((indexNodeTarget = namei((char*)ip->addrs)) == 0) {
           // Something went wrong. Project 4 Requirements: If the symlink's target file does not exist, then open fails. 
           cprintf("Symlink open error: Something went wrong finding the symlink target. Target file may not exist.");
+	  iunlock(ip); // we no longer need the symlink's index node.
           end_op();
           return -1;
       }
@@ -307,7 +308,8 @@ int openSymLink(char* path, int omode, struct inode* ip, int depth) {
        if(depth == 10) {
           cprintf("Symlink Error: Symlink cycle depth of 10 reached. Ending operation.\n");
           iunlock(ip); // we no longer need the symlink's index node.
-          exit();
+	  end_op();
+          return -1;
         }
 
       // Check if the file we opened is just another symlink, if so then recursively follow
