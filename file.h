@@ -8,6 +8,10 @@ struct file {
   uint off;
 };
 
+struct extent {
+  uint length; // the number of blocks that span the length of our extent
+  uint startingAddress; // the first block that we start with for our extent
+};
 
 // in-memory copy of an inode
 struct inode {
@@ -23,7 +27,11 @@ struct inode {
   short nlink;
   uint size;
   uint addrs[NDIRECT+2];  //Changed to allow for a double indirect block
+  struct extent extentz[NDIRECT];
+  uint numExtents;
 };
+
+
 
 // table mapping major device number to
 // device functions

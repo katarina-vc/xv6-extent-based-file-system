@@ -191,6 +191,7 @@ UPROGS=\
 	_testSymLink\
 	_fsproj4\
 	_stat\
+	_extentTest\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

@@ -388,32 +388,16 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     panic("create: ialloc");
   }
 
-  // Project 4 Part 4
-  if(type == T_EXTENT) {
-        // short entry, offset;
-        struct buf *bp;
-
-        // Implementation of direct system
-        // if the logical/virtual block number (bn) falls within the direct block pointers, bmap will
-        // return the physical block number from the inodes direct block point pointer array (the dinodez)
-        for(int i = 0; i < NDIRECT; i++) {
-          // NDIRECT is the number of direct pointer addresses xv6 allows which is like 11
-          // the if statement right below here checks if this block has even been allocated on the physical disk yet.
-          if((addr = ip->addrs[bn]) == 0) {
-            ip->addrs[bn] = addr = balloc(ip->dev);     // if not, then we want to allocate it on the disk.
-          }
-
-          return addr; // after allocating bc it didnt exist, or just finding it, we return it.
-        }
-  }
-
-
-
   ilock(ip);
 
   ip->major = major;
   ip->minor = minor;
   ip->nlink = 1;
+
+  // Project 4 Part 4
+  /*if(type == T_EXTENT) {
+      memset(ip->extentz, 0, sizeof(struct extent));  // Initialize the extents array
+  }*/
 
   iupdate(ip);
 
@@ -458,13 +442,16 @@ int sys_open(void) {
       end_op();
       return -1;
     }
-  } else if (omode & O_EXTENT) { // Project 4 Part 4
+  } else if (omode & O_EXTENT) { // Project 4 Part 4 - The O_EXTENT flag indicates we want to create an extent file
     ip = create(path, T_EXTENT, 0, 0, NULL);
-
+    
     if(ip == 0){
       end_op();
       return -1;
     }
+    
+    ip->numExtents = 0;
+
   } else {
     if((ip = namei(path)) == 0){
       end_op();
@@ -484,6 +471,7 @@ int sys_open(void) {
       return fd;
   }
 
+  // add the file to the file table and directory
   if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
     if(f) {
       fileclose(f);

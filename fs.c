@@ -214,40 +214,6 @@ ialloc(uint dev, short type)
   panic("ialloc: no inodes");
 }
 
-//PAGEBREAK! 
-// Project 4 Part 4
-// Allocate an inode on device dev.
-// Mark it as allocated by  giving it type type.
-// Returns an unlocked but allocated and referenced inode.
-struct inode*
-iExtentAlloc(uint dev, short type)
-{
-  int inum;
-  struct buf *bp;
-  struct dinode *dip;
-
-  for(inum = 1; inum < sb.ninodes; inum++){
-    bp = bread(dev, IBLOCK(inum, sb));
-    dip = (struct dinode*)bp->data + inum%IPB;
-    if(dip->type == 0){  // a free inode
-      memset(dip, 0, sizeof(*dip));
-      dip->type = type;
-      log_write(bp);   // mark it allocated on the disk
-      brelse(bp); // block release, indicates that the buffer obtained from bread() is no longer needed. reclaims buffer for reuse. maintains buffer cache.
-
-      // ok so for extent based file systems, we want a continguous group of blocks so lets just allocate them all when we allocate
-      // a new extent file namsayn.
-      // first slot is the pointer to our shits 
-        uint addr, *a;
-
-      return iget(dev, inum); // gets inode from the disk based on its inode number. returns the in-memory inode.
-    }
-    brelse(bp);
-  }
-  panic("ialloc: no inodes");
-}
-
-
 // Copy a modified in-memory inode to disk.
 // Must be called after every change to an ip->xxx field
 // that lives on disk, since i-node cache is write-through.
@@ -521,11 +487,17 @@ stati(struct inode *ip, struct stat *st)
   st->type = ip->type;
   st->nlink = ip->nlink;
   st->size = ip->size;
+  st->numExtents = ip->numExtents;
 
-  // get each direct block address in our addrs array
-  if(st->type == T_FILE) {
-    for(int i = 0; i < NDIRECT; i++){
-      st->addrs[i] = ip->addrs[i];
+  if(ip->type == T_EXTENT) {
+    /* for(int i = 0; i < ip->numExtents; i++){
+      st->extentz[i] = ip->extentz[i];
+    } */
+  } else {
+    if(st->type == T_FILE) {
+      for(int i = 0; i < NDIRECT; i++){
+        st->addrs[i] = ip->addrs[i];
+      }
     }
   }
 }
@@ -533,29 +505,47 @@ stati(struct inode *ip, struct stat *st)
 //PAGEBREAK!
 // Read data from inode.
 // Caller must hold ip->lock.
-int
-readi(struct inode *ip, char *dst, uint off, uint n)
-{
+int readi(struct inode *ip, char *dst, uint off, uint n) {
   uint tot, m;
   struct buf *bp;
 
   if(ip->type == T_DEV){
-    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read)
+    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read) {
       return -1;
+    }
     return devsw[ip->major].read(ip, dst, n);
   }
 
-  if(off > ip->size || off + n < off)
-    return -1;
-  if(off + n > ip->size)
-    n = ip->size - off;
-
-  for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
-    bp = bread(ip->dev, bmap(ip, off/BSIZE));
-    m = min(n - tot, BSIZE - off%BSIZE);
-    memmove(dst, bp->data + off%BSIZE, m);
-    brelse(bp);
+ // checks if the requested read operation is within the file's boundaries. 
+ // If the requested range is out of bounds, it returns -1 (error). 
+  if(off > ip->size || off + n < off) {
+        return -1;
   }
+   // If the requested range exceeds the file's size, it adjusts the number of bytes to read accordingly.
+  if(off + n > ip->size) {
+      n = ip->size - off;
+  }
+
+
+    // reads the data in a loop.
+    // In each iteration, it reads a portion of the requested data and updates the total bytes read, 
+    // the file offset, and the destination buffer pointer.
+      for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
+        // The function reads a block from the file using the bread() and bmap() functions. 
+        // bmap() is responsible for translating the file's logical block number to the corresponding 
+        // physical block number on the disk. bread() reads the physical block into a buffer
+        bp = bread(ip->dev, bmap(ip, off/BSIZE));
+
+        // calculates the number of bytes to copy from the current block (m) and then copies 
+        // the data from the block buffer (bp->data) to the destination buffer (dst).
+        m = min(n - tot, BSIZE - off%BSIZE);
+        memmove(dst, bp->data + off%BSIZE, m);
+
+        // After copying the data, the function releases the buffer used to store the
+        // block data, allowing it to be reused by other operations.
+        brelse(bp);
+      }
+
   return n;
 }
 
@@ -574,24 +564,87 @@ writei(struct inode *ip, char *src, uint off, uint n)
     return devsw[ip->major].write(ip, src, n);
   }
 
-  if(off > ip->size || off + n < off)
+// checks if the requested write operation is within the allowed file size boundaries. 
+// If the requested range is out of bounds, it returns -1 (error).
+  if(off > ip->size || off + n < off) {
+    cprintf("offset es 2 big ;(\n");
     return -1;
-  if(off + n > MAXFILE*BSIZE)
+  }
+  if(off + n > MAXFILE*BSIZE) {
+    cprintf("offset es outta boundss\n");
     return -1;
-
-  for(tot=0; tot<n; tot+=m, off+=m, src+=m){
-    bp = bread(ip->dev, bmap(ip, off/BSIZE));
-    m = min(n - tot, BSIZE - off%BSIZE);
-    memmove(bp->data + off%BSIZE, src, m);
-    log_write(bp);
-    brelse(bp);
   }
 
-  if(n > 0 && off > ip->size){
-    ip->size = off;
-    iupdate(ip);
+// Project 4 Part 4 things.
+// writes the data in a loop. In each iteration, it writes a portion of the requested data and updates 
+// the total bytes written, the file offset, and the source buffer pointer.
+  if(ip->type == T_EXTENT) {
+
+    // Check we havent made too made extents
+    if(ip->numExtents > NDIRECT) {
+      cprintf("You have too many extents. File is too big. Exiting...\n");
+      exit();
+    } else {
+      ip->numExtents++;
+    }
+
+    struct extent iextent;
+    int lengthCounter = 0;
+
+    for(tot=0; tot<n; tot+=m, off+=m, src+=m){
+      // get the starting address for the extent
+      if(tot == 0) {
+        iextent.startingAddress = bmap(ip, off/BSIZE);
+      }
+
+      lengthCounter++;
+
+      bp = bread(ip->dev, bmap(ip, off/BSIZE));
+
+      // Copy data from the source buffer to the block buffer:
+      m = min(n - tot, BSIZE - off%BSIZE);     // calculates the number of bytes to copy to the current block (m) and 
+      memmove(bp->data + off%BSIZE, src, m);   // then copies the data from the source buffer (src) to the block buffer (bp->data).
+
+      log_write(bp); // Write the modified block to the disk:
+      brelse(bp); // release the block buffer
+    } // end forloop
+
+    iextent.length = lengthCounter;
+
+    if(n > 0 && off > ip->size){
+      ip->extentz[ip->numExtents - 1] = iextent;
+      ip->size = off;
+      iupdate(ip);
+    }
+  } else { // ************************************************************** end T_EXTENT check
+      for(tot=0; tot<n; tot+=m, off+=m, src+=m){
+        // Read a file block:
+        // The function reads a block from the file using the bread() and bmap() functions. 
+        // bmap() is responsible for translating the file's logical block number to the corresponding 
+        // physical block number on the disk. bread() reads the physical block into a buffer.
+        bp = bread(ip->dev, bmap(ip, off/BSIZE));
+
+        // Copy data from the source buffer to the block buffer:
+        m = min(n - tot, BSIZE - off%BSIZE);     // calculates the number of bytes to copy to the current block (m) and 
+        memmove(bp->data + off%BSIZE, src, m);   // then copies the data from the source buffer (src) to the block buffer (bp->data).
+
+        log_write(bp); // Write the modified block to the disk:
+        brelse(bp); // release the block buffer
+      }
+
+    // Update the inode size and metadata:
+    /*
+      If any data was written and the new file offset is greater than the inode's current size, 
+      the function updates the inode's size to reflect the new file size. It then calls 
+      iupdate() to write the updated inode metadata to the disk.
+    */
+      if(n > 0 && off > ip->size){
+        ip->size = off;
+        iupdate(ip);
+      }
   }
-  return n;
+
+  return n; // Return the number of bytes written
 }
 
 //PAGEBREAK!

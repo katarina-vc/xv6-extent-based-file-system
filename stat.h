@@ -11,4 +11,5 @@ struct stat {
   short nlink; // Number of links to file
   uint size;   // Size of file in bytes
   uint addrs[12]; // addresses of the inodez - NDIRECT + 1 = 12
+  uint numExtents;
 };
