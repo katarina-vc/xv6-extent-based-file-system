@@ -487,14 +487,15 @@ stati(struct inode *ip, struct stat *st)
   st->type = ip->type;
   st->nlink = ip->nlink;
   st->size = ip->size;
-  st->numExtents = ip->numExtents;
 
   if(ip->type == T_EXTENT) {
-    /* for(int i = 0; i < ip->numExtents; i++){
-      st->extentz[i] = ip->extentz[i];
-    } */
+      st->numExtents = ip->numExtents;
+    for(int i = 0; i < ip->numExtents; i++){
+        st->extentz[i].length = ip->extentz[i].length;
+        st->extentz[i].startingAddress = ip->extentz[i].startingAddress;
+    }
   } else {
-    if(st->type == T_FILE) {
+    if(ip->type == T_FILE) {
       for(int i = 0; i < NDIRECT; i++){
         st->addrs[i] = ip->addrs[i];
       }
@@ -526,7 +527,38 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
       n = ip->size - off;
   }
 
+  if(ip->type == T_EXTENT) {
+       //  cprintf("\nss: %d\n", ip->sisterblocks);
 
+        begin_op();
+        if(ip->brotherblocks < ip->sisterblocks) {
+          // cprintf("\n bb less than bb: %d\n", ip->brotherblocks);
+          bp = bread(ip->dev, bmap(ip, ip->brotherblocks));
+          // cprintf("\nbp less than bpdata: %s\n", bp->data);
+          memmove(dst, bp->data, sizeof(bp->data));   // then copies the data from the source buffer (src) to the block buffer (bp->data).
+          // cprintf("\ndst: %s\n", dst);
+          brelse(bp); // release the block buffer
+
+          ip->brotherblocks++;
+          iupdate(ip);
+          end_op();
+          return 512;
+        } else if(ip->brotherblocks == ip->sisterblocks) {
+          // cprintf("\n bb == to bb: %d\n", ip->brotherblocks);
+            ip->brotherblocks = 0; // reset we are done.
+            iupdate(ip);
+            end_op();
+            return -1;
+        } else if(ip->brotherblocks > ip->sisterblocks) {
+            // cprintf(" \n HEREEE bb: %d\n", ip->brotherblocks);
+            ip->brotherblocks = 0; // reset we are done.
+            iupdate(ip);
+            end_op();
+            return -1;
+        }
+
+
+  } else { 
     // reads the data in a loop.
     // In each iteration, it reads a portion of the requested data and updates the total bytes read, 
     // the file offset, and the destination buffer pointer.
@@ -545,6 +577,7 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
         // block data, allowing it to be reused by other operations.
         brelse(bp);
       }
+  }
 
   return n;
 }
@@ -558,9 +591,11 @@ writei(struct inode *ip, char *src, uint off, uint n)
   uint tot, m;
   struct buf *bp;
 
-  if(ip->type == T_DEV){
-    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write)
+  if(ip->type == T_DEV) {
+    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write) {
+      cprintf("Here\n\n :(\n\n)");
       return -1;
+    }
     return devsw[ip->major].write(ip, src, n);
   }
 
@@ -579,7 +614,6 @@ writei(struct inode *ip, char *src, uint off, uint n)
 // writes the data in a loop. In each iteration, it writes a portion of the requested data and updates 
 // the total bytes written, the file offset, and the source buffer pointer.
   if(ip->type == T_EXTENT) {
-
     // Check we havent made too made extents
     if(ip->numExtents > NDIRECT) {
       cprintf("You have too many extents. File is too big. Exiting...\n");
@@ -594,17 +628,20 @@ writei(struct inode *ip, char *src, uint off, uint n)
     for(tot=0; tot<n; tot+=m, off+=m, src+=m){
       // get the starting address for the extent
       if(tot == 0) {
-        iextent.startingAddress = bmap(ip, off/BSIZE);
+        // check if this index node ip already has at least one extent
+          iextent.startingAddress = bmap(ip, ip->sisterblocks);
+          bp = bread(ip->dev, iextent.startingAddress);
+      } else {
+        bp = bread(ip->dev, bmap(ip, ip->sisterblocks));
       }
 
+      ip->sisterblocks++;
       lengthCounter++;
-
-      bp = bread(ip->dev, bmap(ip, off/BSIZE));
+      ip->brotherblocks = 0;
 
       // Copy data from the source buffer to the block buffer:
       m = min(n - tot, BSIZE - off%BSIZE);     // calculates the number of bytes to copy to the current block (m) and 
       memmove(bp->data + off%BSIZE, src, m);   // then copies the data from the source buffer (src) to the block buffer (bp->data).
-
       log_write(bp); // Write the modified block to the disk:
       brelse(bp); // release the block buffer
     } // end forloop

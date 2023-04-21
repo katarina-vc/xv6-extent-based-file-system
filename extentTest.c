@@ -13,18 +13,9 @@
 int main(int argc, char *argv[])
 {
     // Text to periodically write to our new extent file:
-    const char *fileContentWrite1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-
+    const char *fileContentWrite1 = "START 1ST CONTENT FLAG.corrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolores END 1ST CONTENT FLAG.";
+    const char *fileContentWrite2 = "START 2ND CONTENT FLAGcorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolores. END SECOND CONTENT FLAG.";
 /*
-    const char *fileContentWrite2 = "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, 
-    totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim
-     ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem 
-     sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam 
-     eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis 
-     nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure 
-     reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla 
-     pariatur?";
-
      const char *fileContentWrite3 = "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis 
      praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate 
      non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. 
@@ -34,7 +25,7 @@ int main(int argc, char *argv[])
      repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut 
      aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.";
 */
-
+    printf(1, "\nCreating an extent file called: %s\n", argv[1]);
     // **** Creating the extent file **************************************************************************************
     int fileDescriptor;
     if((fileDescriptor = open(argv[1], O_EXTENT)) < 0) {
@@ -43,6 +34,7 @@ int main(int argc, char *argv[])
     }
     close(fileDescriptor);
 
+    printf(1, "Writing first chunk of content to new extent file: %s\n", argv[1]);
     // **** Write file content number 1 to our extent. **********************************************************************
     int fileDescriptor2;
     if((fileDescriptor2 = open(argv[1], O_WRONLY)) < 0) {
@@ -57,13 +49,16 @@ int main(int argc, char *argv[])
     }
     close(fileDescriptor2);
 
+    printf(1, "Printing out extent file: %s\n\n", argv[1]);
     // **** Read and print out the contents of our extent file to prove we did it. ******************************************
     int fileDescriptor3;
-    char buf[512];
+
     if((fileDescriptor3 = open(argv[1], O_RDONLY)) < 0) {
             printf(1, "testExtent failed: Cannot open extent file %s\n", argv[1]);
             exit();
     }
+    
+    char buf[512];
 
     // reading and printing code below from xv6's cat.c file.
     int n;
@@ -75,12 +70,80 @@ int main(int argc, char *argv[])
             exit();
         }
     }
-    if (n < 0)
-    {
-        printf(1, "testExtent failed: Something went wrong reading extent file.\n");
+
+    printf(1, "\n");
+    close(fileDescriptor3);
+
+
+    printf(1, "\nExtent file has been successfully created, written too, and read. Calling exec() on a child process to run the stat user program on our new extent file: %s\n\n", argv[1]);
+    // **** Creating a child process to run exec() for our stat user program to print out info about our new extent file ******************************************
+    int pid = fork();
+
+    if (pid == 0) {
+        // run the stat user program for our new file
+        char *args[] = {"stat", argv[1], NULL}; // list of arguments for stat, the last arg must always be NULL
+        exec(args[0], args);
+        exit();
+	}
+
+    pid = wait();
+
+
+    printf(1, "\n\nWriting second chunk of content to new extent file to show we can grow it: %s\n", argv[1]);
+    // **** Write file content number 1 to our extent. **********************************************************************
+    int fileDescriptor4;
+    if((fileDescriptor4 = open(argv[1], O_WRONLY)) < 0) {
+            printf(1, "testExtent failed: Cannot open extent %s\n", argv[1]);
+            exit();
+    }
+
+    if (write(fileDescriptor4, fileContentWrite2, strlen(fileContentWrite2)) != strlen(fileContentWrite2)) {
+        printf(2, "testExtent failed: failed to write the content to the extent file.\n");
+        close(fileDescriptor4);
         exit();
     }
-    close(fileDescriptor3);
+    close(fileDescriptor4);
+
+    printf(1, "Printing out extent file: %s\n\n", argv[1]);
+    // **** Read and print out the contents of our extent file to prove we did it. ******************************************
+    int fileDescriptor5;
+
+    if((fileDescriptor5 = open(argv[1], O_RDONLY)) < 0) {
+            printf(1, "testExtent failed: Cannot open extent file %s\n", argv[1]);
+            exit();
+    }
+
+    char buf2[1024];
+
+    // reading and printing code below from xv6's cat.c file.
+    int n2;
+    while ((n2 = read(fileDescriptor5, buf2, sizeof(buf2))) > 0)
+    { 
+        // printf(1,"\n1 n2: %d", n2);
+        if (write(1, buf2, n2) != n2)
+        {
+            printf(1, "testExtent failed: Cannot write out extent file.\n");
+            exit();
+        }
+    }
+            // printf(1,"\n2 n2: %d", n2);
+
+    printf(1, "\n");
+    close(fileDescriptor5);
+
+
+    printf(1, "\n\nExtent file has been successfully extended, written, and read. Calling exec() on a child process to run the stat user program on our extent file to see updates: %s...\n", argv[1]);
+    // **** Creating a child process to run exec() for our stat user program to print out info about our new extent file ******************************************pid = fork();
+
+    int pid2 = fork();
+    if (pid2 == 0) {
+        // run the stat user program for our new file
+        char *args[] = {"stat", argv[1], NULL}; // list of arguments for stat, the last arg must always be NULL
+        exec(args[0], args);
+        exit();
+	}
+
+    pid2 = wait();
 
     exit();
 } // end main()

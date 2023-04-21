@@ -451,6 +451,7 @@ int sys_open(void) {
     }
     
     ip->numExtents = 0;
+    ip->sisterblocks = 0;
 
   } else {
     if((ip = namei(path)) == 0){

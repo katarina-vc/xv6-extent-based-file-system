@@ -29,6 +29,8 @@ struct inode {
   uint addrs[NDIRECT+2];  //Changed to allow for a double indirect block
   struct extent extentz[NDIRECT];
   uint numExtents;
+  int sisterblocks; // for continuous allocation and frag. reduction
+  int brotherblocks;
 };
 
 
