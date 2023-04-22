@@ -13,8 +13,8 @@
 int main(int argc, char *argv[])
 {
     // Text to periodically write to our new extent file:
-    const char *fileContentWrite1 = "START 1ST CONTENT FLAG.corrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolores END 1ST CONTENT FLAG.";
-    const char *fileContentWrite2 = "START 2ND CONTENT FLAGcorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolorescorrupti quos dolores. END SECOND CONTENT FLAG.";
+    const char *fileContentWrite1 = "CONTENT 1 START: We have stopped maintaining the x86 version of xv6, and switched our efforts to the RISC-V version xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix Version 6 (v6).  xv6 loosely follows the structure and style of v6, but is implemented for a modern x86-based multiprocessor using ANSI C. CONTENT 1 END.";
+    const char *fileContentWrite2 = "CONTENT 2 START: We are also grateful for the bug reports and patches contributed by Silas Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed, eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel Filardo, Peter Froehlich, Yakir Goaron,Shivam Handa, Bryan Henry, Jim Huang, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller, Eddie Kohler, Austin Liew, Imbar Marinescu, Yandong Mao, Matan Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel Nider, Greg Price, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Cam Tenny, tyfkda, Rafael Ubal, Warren Toomey, Stephen Tu, Pablo Ventura, Xi Wang, Keiichi Watanabe, Nicolas Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng, and Zou Chang Wei. CONTENT 2 END.";
 /*
      const char *fileContentWrite3 = "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis 
      praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate 
