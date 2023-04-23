@@ -517,7 +517,9 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
     return devsw[ip->major].read(ip, dst, n);
   }
 
- // checks if the requested read operation is within the file's boundaries. 
+ // checks if the requested read operation is within the file's boundaries.
+ // checks if n is a negative number
+ // if either are true. then return an error. 
  // If the requested range is out of bounds, it returns -1 (error). 
   if(off > ip->size || off + n < off) {
         return -1;
@@ -528,36 +530,90 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
   }
 
   if(ip->type == T_EXTENT) {
-       //  cprintf("\nss: %d\n", ip->sisterblocks);
+        int extentNumToReadFrom = -1; // the extent in our file's extent array we start reading based on the file offset
+        int extentLengthNumToReadFrom = -1; // the length number we start reading based on the file's offset and extent number
+        int extentAddressToReadFrom = -1; // the actual address we want to start reading from based on the extent, extent's length and file offset
 
-        begin_op();
-        if(ip->brotherblocks < ip->sisterblocks) {
-          // cprintf("\n bb less than bb: %d\n", ip->brotherblocks);
-          bp = bread(ip->dev, bmap(ip, ip->brotherblocks));
-          // cprintf("\nbp less than bpdata: %s\n", bp->data);
-          memmove(dst, bp->data, sizeof(bp->data));   // then copies the data from the source buffer (src) to the block buffer (bp->data).
-          // cprintf("\ndst: %s\n", dst);
-          brelse(bp); // release the block buffer
+        // get the address for our offset we want to start reading from
+        int offsetAddress = bmap(ip, off/BSIZE);
 
-          ip->brotherblocks++;
-          iupdate(ip);
-          end_op();
-          return 512;
-        } else if(ip->brotherblocks == ip->sisterblocks) {
-          // cprintf("\n bb == to bb: %d\n", ip->brotherblocks);
-            ip->brotherblocks = 0; // reset we are done.
-            iupdate(ip);
-            end_op();
-            return -1;
-        } else if(ip->brotherblocks > ip->sisterblocks) {
-            // cprintf(" \n HEREEE bb: %d\n", ip->brotherblocks);
-            ip->brotherblocks = 0; // reset we are done.
-            iupdate(ip);
-            end_op();
-            return -1;
+        // loop through each extent in our file to find where the offset address matches a position in one our the file's extents
+        for(int i = 0; i < ip->numExtents; i++) {
+          int foundFlag = 0; // indicates we found the extent number and length position number where the offset lives
+          int extentAddressRange = ip->extentz[i].startingAddress; // start searching at the beginning of each extent
+
+            // loop through each address in the extent based off of the starting address and the length of that extent
+            for(int j = 0; j < ip->extentz[i].length; j++) {
+              // check if our file's offset address matches an addres in this extent
+              if(extentAddressRange == offsetAddress) {
+                // we found our matching address!
+                extentNumToReadFrom = i;
+                extentLengthNumToReadFrom = j;
+                extentAddressToReadFrom = extentAddressRange;
+                foundFlag = 1;
+                break;
+              } 
+
+              extentAddressRange++;
+            }
+
+          if(foundFlag == 1){
+            break;
+          }
         }
 
+        // now actually loop through the extent to read it out
+        uint tot = 0;
+        uint min1;
+        uint m;
+        for(int i = extentNumToReadFrom; i < ip->numExtents; i++) {
+            // check that the total number of bytes read is not greater than or equal to the bytes requested. if so return n;
+            if(tot > n) {
+              // cprintf("\n READI() OUTER LOOP EXITING READI(): FINISHED READING FROM EXTENT NO: %d, TOT: %d, N: %d\n", i, tot, n);
+              return n;
+            }
 
+            // Check if we are still reading from the original extent we started with
+            // if not, then we need to grab the next extents starting address and set that
+            // to continue copying bytes from
+            if(i != extentNumToReadFrom) {
+               extentAddressToReadFrom = ip->extentz[i].startingAddress;
+               extentLengthNumToReadFrom = 0;
+            }
+
+            // cprintf("\nOUTER READ - READING FROM EXTENT NO: %d, STARTING ADDY NO: %d, LEGNTH: %d\n", i, extentAddressToReadFrom, extentLengthNumToReadFrom);
+
+            // loop through each address in the extent and map the data to the destination buffer until we hit the total number of bytes read
+            for(int j = extentLengthNumToReadFrom; j < ip->extentz[i].length; j++) {
+                // check that the total number of bytes read is not greater than or equal to the bytes requested. if so return n;
+                 if(tot > n) {
+                  // cprintf("\n READI() INNER LOOP EXITING READI(): DIDN'T READ EXTENT NO: %d, BLOCK NO: %d, TOT: %d, N: %d\n", i, j, tot, n);
+                  return n;
+                }
+
+                // cprintf("\nINNER READ - READING FROM EXTENT NO: %d, BLOCK NO: %d, ADDRESS WE R READING: %d\n", i, j, extentAddressToReadFrom);
+                
+                // read the extent's address
+                bp = bread(ip->dev, extentAddressToReadFrom);
+                // calculate the number of m bytes to copy
+                min1 = min(strlen((char *)bp->data), BSIZE - off%BSIZE);
+                m = min(n - tot, min1);
+
+                // cprintf("\n INNER READ M CALC: n-tot: %d, bsize - off/bsize: %d, m = %d sizeof data: %d, strlen data: %d\n", n-tot, BSIZE - off%BSIZE, m, sizeof(bp->data), strlen((char *)bp->data));
+                // copy the bytes to the destination buffer
+                memmove(dst, bp->data, m);
+                // cprintf("\ndst: %s\n", dst);
+               //  cprintf("\n data we r copying: %s\n", bp->data + off%BSIZE);
+                             //    cprintf("\n data we r copying 2: %s\n", bp->data);
+                brelse(bp);
+
+                // increment the extent address
+                extentAddressToReadFrom++;
+                tot+=m;
+                off+=m;
+                dst+=m;
+            }
+        } // end for loop
   } else { 
     // reads the data in a loop.
     // In each iteration, it reads a portion of the requested data and updates the total bytes read, 
@@ -569,8 +625,11 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
         bp = bread(ip->dev, bmap(ip, off/BSIZE));
 
         // calculates the number of bytes to copy from the current block (m) and then copies 
-        // the data from the block buffer (bp->data) to the destination buffer (dst).
+        // the data from the block buffer (bp->data) to the destination buffer (dst). 
+      //It calculates the number of bytes to read from the current block (m) using the min() function, 
+      // which returns the smaller of two values.
         m = min(n - tot, BSIZE - off%BSIZE);
+        // It copies the data from the buffer to the destination using the memmove() function.
         memmove(dst, bp->data + off%BSIZE, m);
 
         // After copying the data, the function releases the buffer used to store the
@@ -578,6 +637,8 @@ int readi(struct inode *ip, char *dst, uint off, uint n) {
         brelse(bp);
       }
   }
+
+// Finally, the function returns the number of bytes read (n).
 
   return n;
 }
@@ -616,7 +677,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
   if(ip->type == T_EXTENT) {
     // Check we havent made too made extents
     if(ip->numExtents > NDIRECT) {
-      cprintf("You have too many extents. File is too big. Exiting...\n");
+      cprintf("You have too many extents. Your extent file is too big and we cannot continue to write. Exiting...\n");
       exit();
     } else {
       ip->numExtents++;
@@ -627,9 +688,11 @@ writei(struct inode *ip, char *src, uint off, uint n)
 
     for(tot=0; tot<n; tot+=m, off+=m, src+=m){
       // get the starting address for the extent
+      // cprintf("\n\n\nwritei tot: %d for extent no: %d\n", tot, ip->numExtents);
       if(tot == 0) {
         // check if this index node ip already has at least one extent
           iextent.startingAddress = bmap(ip, ip->sisterblocks);
+                // cprintf("\nwritei tot == 0 start addy: %d for extent no: %d\n", iextent.startingAddress, ip->numExtents);
           bp = bread(ip->dev, iextent.startingAddress);
       } else {
         bp = bread(ip->dev, bmap(ip, ip->sisterblocks));
@@ -637,21 +700,28 @@ writei(struct inode *ip, char *src, uint off, uint n)
 
       ip->sisterblocks++;
       lengthCounter++;
-      ip->brotherblocks = 0;
 
       // Copy data from the source buffer to the block buffer:
       m = min(n - tot, BSIZE - off%BSIZE);     // calculates the number of bytes to copy to the current block (m) and 
       memmove(bp->data + off%BSIZE, src, m);   // then copies the data from the source buffer (src) to the block buffer (bp->data).
+      // cprintf("\n writei: data we are writing and m: %d  |||| %s\n",m, src);
+      // cprintf("\n");
       log_write(bp); // Write the modified block to the disk:
+           //  cprintf("\ndata that was writtennn..: %s\n", bp->data);
+
       brelse(bp); // release the block buffer
     } // end forloop
 
     iextent.length = lengthCounter;
 
-    if(n > 0 && off > ip->size){
+      // cprintf("WRITEI EXTENT STRUCT: n: %d off: %d\n", n, off);
+    if(n > 0){
+      // cprintf("WRITEI EXTENT STRUCT: iextent size: %d iextent sA: %d\n", iextent.length, iextent.startingAddress);
       ip->extentz[ip->numExtents - 1] = iextent;
-      ip->size = off;
+      // cprintf("1 WRITEI EXTENT STRUCT: ip extent size: %d ip extent sA: %d\n", ip->extentz[ip->numExtents - 1].length, ip->extentz[ip->numExtents - 1].startingAddress);
+      ip->size += n;
       iupdate(ip);
+      // cprintf("2 WRITEI EXTENT STRUCT: ip extent size: %d ip extent sA: %d\n", ip->extentz[ip->numExtents - 1].length, ip->extentz[ip->numExtents - 1].startingAddress);
     }
   } else { // ************************************************************** end T_EXTENT check
       for(tot=0; tot<n; tot+=m, off+=m, src+=m){

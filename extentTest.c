@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 {
     // Text to periodically write to our new extent file:
     const char *fileContentWrite1 = "CONTENT 1 START: We have stopped maintaining the x86 version of xv6, and switched our efforts to the RISC-V version xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix Version 6 (v6).  xv6 loosely follows the structure and style of v6, but is implemented for a modern x86-based multiprocessor using ANSI C. CONTENT 1 END.";
-    const char *fileContentWrite2 = "CONTENT 2 START: We are also grateful for the bug reports and patches contributed by Silas Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed, eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel Filardo, Peter Froehlich, Yakir Goaron,Shivam Handa, Bryan Henry, Jim Huang, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller, Eddie Kohler, Austin Liew, Imbar Marinescu, Yandong Mao, Matan Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel Nider, Greg Price, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Cam Tenny, tyfkda, Rafael Ubal, Warren Toomey, Stephen Tu, Pablo Ventura, Xi Wang, Keiichi Watanabe, Nicolas Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng, and Zou Chang Wei. CONTENT 2 END.";
+    const char *fileContentWrite2 = "CONTENT 2 START: We are also grateful for the bug reports and patches contributed by Silas Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed CONTENT 2 END.";
 /*
      const char *fileContentWrite3 = "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis 
      praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate 
@@ -42,6 +42,8 @@ int main(int argc, char *argv[])
             exit();
     }
 
+
+    printf(1, "\nwriting content 1. content 1 length: %d, size: %d\n", strlen(fileContentWrite1), sizeof(fileContentWrite1));
     if (write(fileDescriptor2, fileContentWrite1, strlen(fileContentWrite1)) != strlen(fileContentWrite1)) {
         printf(2, "testExtent failed: failed to write the content to the extent file.\n");
         close(fileDescriptor2);
@@ -97,12 +99,23 @@ int main(int argc, char *argv[])
             exit();
     }
 
+    printf(1, "\nwriting content 2. content 2 length: %d, size: %d\n", strlen(fileContentWrite2), sizeof(fileContentWrite2));
     if (write(fileDescriptor4, fileContentWrite2, strlen(fileContentWrite2)) != strlen(fileContentWrite2)) {
         printf(2, "testExtent failed: failed to write the content to the extent file.\n");
         close(fileDescriptor4);
         exit();
     }
     close(fileDescriptor4);
+
+    int pid3 = fork();
+    if (pid3 == 0) {
+        // run the stat user program for our new file
+        char *args[] = {"stat", argv[1], NULL}; // list of arguments for stat, the last arg must always be NULL
+        exec(args[0], args);
+        exit();
+	}
+
+    pid3 = wait();
 
     printf(1, "Printing out extent file: %s\n\n", argv[1]);
     // **** Read and print out the contents of our extent file to prove we did it. ******************************************

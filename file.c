@@ -108,20 +108,12 @@ fileread(struct file *f, char *addr, int n)
     return piperead(f->pipe, addr, n);
   if(f->type == FD_INODE){
     ilock(f->ip);
-    if(f->ip->type != T_EXTENT) {
-      if((r = readi(f->ip, addr, f->off, n)) > 0) {
-          f->off += r;
-      }
-    } else {
-        r = readi(f->ip, addr, f->off, n);
-        iunlock(f->ip);
-        return r;
-    }
-
+    if((r = readi(f->ip, addr, f->off, n)) > 0)
+      f->off += r;
     iunlock(f->ip);
     return r;
   }
-
+  
   // Project 4 - Part 2 - Read a symlink
   if(f->type == SYMLINK) {
     ilock(f->ip);

@@ -394,11 +394,6 @@ static struct inode* create(char *path, short type, short major, short minor, ch
   ip->minor = minor;
   ip->nlink = 1;
 
-  // Project 4 Part 4
-  /*if(type == T_EXTENT) {
-      memset(ip->extentz, 0, sizeof(struct extent));  // Initialize the extents array
-  }*/
-
   iupdate(ip);
 
  // creates a directory specific inode
