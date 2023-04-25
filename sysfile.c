@@ -447,6 +447,8 @@ int sys_open(void) {
     
     ip->numExtents = 0;
     ip->sisterblocks = 0;
+    ip->eOffset = 0;
+    ip->lOffset = 0;
 
   } else {
     if((ip = namei(path)) == 0){
@@ -477,7 +479,8 @@ int sys_open(void) {
     end_op();
     return -1;
   }
-
+  ip->eOffset = 0;
+  ip->lOffset = 0;
   iunlock(ip);
   end_op();
 

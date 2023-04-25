@@ -9,8 +9,8 @@ struct file {
 };
 
 struct extent {
-  uint length; // the number of blocks that span the length of our extent
-  uint startingAddress; // the first block that we start with for our extent
+  uint length; 
+  uint startingAddress; 
 };
 
 // in-memory copy of an inode
@@ -30,7 +30,8 @@ struct inode {
   struct extent extentz[NDIRECT];
   uint numExtents;
   int sisterblocks; // for continuous allocation and frag. reduction
-  int brotherblocks;
+  int eOffset; 
+  int lOffset;
 };
 
 

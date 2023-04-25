@@ -13,18 +13,10 @@
 int main(int argc, char *argv[])
 {
     // Text to periodically write to our new extent file:
-    const char *fileContentWrite1 = "CONTENT 1 START: We have stopped maintaining the x86 version of xv6, and switched our efforts to the RISC-V version xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix Version 6 (v6).  xv6 loosely follows the structure and style of v6, but is implemented for a modern x86-based multiprocessor using ANSI C. CONTENT 1 END.";
-    const char *fileContentWrite2 = "CONTENT 2 START: We are also grateful for the bug reports and patches contributed by Silas Boyd-Wickizer, Anton Burtsev, Cody Cutler, Mike CAT, Tej Chajed CONTENT 2 END.";
-/*
-     const char *fileContentWrite3 = "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis 
-     praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate 
-     non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. 
-     Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio 
-     cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor 
-     repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates 
-     repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut 
-     aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.";
-*/
+    const char *fileContentWrite1 = "CONTENT 1 START: ............................................................................................................................................................................................................................................................................................................................................................................................................CONTENT 1 END.";
+    const char *fileContentWrite2 = "CONTENT 2 START: ..............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................CONTENT 2 END.";
+    const char *fileContentWrite3 = "CONTENT 3 START: ..................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................CONTENT 3 END.";
+
     printf(1, "\nCreating an extent file called: %s\n", argv[1]);
     // **** Creating the extent file **************************************************************************************
     int fileDescriptor;
@@ -107,16 +99,6 @@ int main(int argc, char *argv[])
     }
     close(fileDescriptor4);
 
-    int pid3 = fork();
-    if (pid3 == 0) {
-        // run the stat user program for our new file
-        char *args[] = {"stat", argv[1], NULL}; // list of arguments for stat, the last arg must always be NULL
-        exec(args[0], args);
-        exit();
-	}
-
-    pid3 = wait();
-
     printf(1, "Printing out extent file: %s\n\n", argv[1]);
     // **** Read and print out the contents of our extent file to prove we did it. ******************************************
     int fileDescriptor5;
@@ -126,14 +108,14 @@ int main(int argc, char *argv[])
             exit();
     }
 
-    char buf2[1024];
+    char buf2[512];
 
     // reading and printing code below from xv6's cat.c file.
-    int n2;
-    while ((n2 = read(fileDescriptor5, buf2, sizeof(buf2))) > 0)
+    int numberBytesRead;
+    while ((numberBytesRead = read(fileDescriptor5, buf2, sizeof(buf2))) > 0)
     { 
         // printf(1,"\n1 n2: %d", n2);
-        if (write(1, buf2, n2) != n2)
+        if (write(1, buf2, numberBytesRead) != numberBytesRead)
         {
             printf(1, "testExtent failed: Cannot write out extent file.\n");
             exit();
@@ -157,6 +139,62 @@ int main(int argc, char *argv[])
 	}
 
     pid2 = wait();
+
+     printf(1, "\n\nWriting third chunk of content to new extent file to show we can grow it: %s\n", argv[1]);
+    // **** Write file content number 1 to our extent. **********************************************************************
+    int fileDescriptorThree;
+    if((fileDescriptorThree = open(argv[1], O_WRONLY)) < 0) {
+            printf(1, "testExtent failed: Cannot open extent %s\n", argv[1]);
+            exit();
+    }
+
+    printf(1, "\nwriting content 3. content 3 length: %d, size: %d\n", strlen(fileContentWrite3), sizeof(fileContentWrite3));
+    if (write(fileDescriptorThree, fileContentWrite3, strlen(fileContentWrite3)) != strlen(fileContentWrite3)) {
+        printf(2, "testExtent failed: failed to write the content to the extent file.\n");
+        close(fileDescriptorThree);
+        exit();
+    }
+    close(fileDescriptorThree);
+
+    printf(1, "Printing out extent file: %s\n\n", argv[1]);
+    // **** Read and print out the contents of our extent file to prove we did it. ******************************************
+    int fileDescriptorThree2;
+
+    if((fileDescriptorThree2 = open(argv[1], O_RDONLY)) < 0) {
+            printf(1, "testExtent failed: Cannot open extent file %s\n", argv[1]);
+            exit();
+    }
+
+    char buf3[512];
+
+    // reading and printing code below from xv6's cat.c file.
+    int numberBytesRead2;
+    while ((numberBytesRead2 = read(fileDescriptorThree2, buf3, sizeof(buf3))) > 0)
+    { 
+        // printf(1,"\n1 n2: %d", n2);
+        if (write(1, buf3, numberBytesRead2) != numberBytesRead2)
+        {
+            printf(1, "testExtent failed: Cannot write out extent file.\n");
+            exit();
+        }
+    }
+            // printf(1,"\n2 n2: %d", n2);
+
+    printf(1, "\n");
+    close(fileDescriptorThree2);
+
+
+    printf(1, "\n\nExtent file has been successfully extended, written, and read again :). Calling exec() on a child process to run the stat user program on our extent file to see updates: %s...\n", argv[1]);
+    int pid3 = fork();
+    if (pid3 == 0) {
+        // run the stat user program for our new file
+        char *args[] = {"stat", argv[1], NULL}; // list of arguments for stat, the last arg must always be NULL
+        exec(args[0], args);
+        exit();
+	}
+
+    pid3 = wait();
+
 
     exit();
 } // end main()
