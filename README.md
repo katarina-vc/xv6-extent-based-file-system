@@ -101,9 +101,29 @@ We don't start allocating anything to our extent file until we write to the exte
 
 When we read from an extent, we read based on each extent in the file at its start address, and then traverse through the length of the extent until the read operation is complete. 
 
+#### testExtent user program
+The testExtent user program runs tests on extent files to prove we are reading, writing, and freeing extents properly. To run testExtent, pass in one argument that you would like your file name to be. such as:
+
+textExtent test
+
+The testExtent user program will create and then write a chunk of content to an extent file. We know that the full chunk of content was properly written and read because we denote it's start and end by "CONTENT 1 START" and "CONTENT 1 END". We follow this pattern for the rest of the chunks of content. After we write to the extent, read it, and output it, we create a child process to call exec() which calls the stat user program on our extent file. See image below. 
+
+![image](https://user-images.githubusercontent.com/25674116/234159792-76b8f804-e355-4dbc-b831-9a4dd853bbe4.png)
+
+The next test that testExtent runs is adding a second chunk of content to the file, reading, and outputting the file. We run stat again as well. This is to prove we can grow our file, and that it can contain multiple extents of various sizes.
+
+![image](https://user-images.githubusercontent.com/25674116/234160072-86e689db-f464-467c-afd6-34d4f7b49c25.png)
+
+We perform this test one more time with a third chunk of data.
+
+![image](https://user-images.githubusercontent.com/25674116/234160247-466a161d-b0fc-4014-909d-c2cef2b66893.png)
+
+
 #### stat user program
 I also implemented the stat user program, which checks if the file type we are reading is an extent type or pointer based file. If we stat an extent file, then we get files information plus information about its extents. (see screenshot below)
+
 ![image](https://user-images.githubusercontent.com/25674116/234158993-1709b034-450f-45be-9f53-025ddd28f880.png)
 
 If we stat a pointer based file, such as the README file that the xv6 operating system has, then we get information about its file and its direct pointers.
+
 ![image](https://user-images.githubusercontent.com/25674116/234159177-61dde823-1691-40de-b98a-f5869a064e44.png)
