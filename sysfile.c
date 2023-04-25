@@ -72,7 +72,7 @@ fdalloc(struct file *f)
 
   for(fd = 0; fd < NOFILE; fd++){
     if(curproc->ofile[fd] == 0){
-      curproc->ofile[fd] = f;
+        curproc->ofile[fd] = f;
       return fd;
     }
   }
@@ -300,6 +300,7 @@ int openSymLink(char* path, int omode, struct inode* ip, int depth) {
       if((indexNodeTarget = namei((char*)ip->addrs)) == 0) {
           // Something went wrong. Project 4 Requirements: If the symlink's target file does not exist, then open fails. 
           cprintf("Symlink open error: Something went wrong finding the symlink target. Target file may not exist.");
+	  iunlock(ip); // we no longer need the symlink's index node.
           end_op();
           return -1;
       }
@@ -307,7 +308,8 @@ int openSymLink(char* path, int omode, struct inode* ip, int depth) {
        if(depth == 10) {
           cprintf("Symlink Error: Symlink cycle depth of 10 reached. Ending operation.\n");
           iunlock(ip); // we no longer need the symlink's index node.
-          exit();
+	  end_op();
+          return -1;
         }
 
       // Check if the file we opened is just another symlink, if so then recursively follow
@@ -370,7 +372,7 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     return 0;
   }
    
-  ilock(dp);
+  ilock(dp); 
 
   if((ip = dirlookup(dp, name, 0)) != 0) {
 
@@ -383,10 +385,11 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     iunlockput(ip); // free and release the inode 
     return 0; // leave
   }
-  
+
   if((ip = ialloc(dp->dev, type)) == 0) {
-    panic("create: ialloc");
+      panic("create: ialloc");
   }
+
 
   ilock(ip);
 
@@ -394,7 +397,7 @@ static struct inode* create(char *path, short type, short major, short minor, ch
   ip->minor = minor;
   ip->nlink = 1;
 
-  iupdate(ip);
+  iupdate(ip); 
 
  // creates a directory specific inode
   if(type == T_DIR){  // Create . and .. entries.
@@ -402,11 +405,11 @@ static struct inode* create(char *path, short type, short major, short minor, ch
     iupdate(dp);
     // No ip->nlink++ for ".": avoid cyclic ref count.
     if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
-      panic("create dots");
+      panic("create dots"); 
   }
 
   if(dirlink(dp, name, ip->inum) < 0) {
-    panic("create: dirlink");
+        panic("create: dirlink");
   }
 
   iunlockput(dp); // free and release the inode
@@ -424,7 +427,7 @@ int sys_open(void) {
   int fd, omode;
   struct file *f;
   struct inode *ip;
-
+  
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0) {
     return -1;
   }
@@ -433,34 +436,21 @@ int sys_open(void) {
 
   if(omode & O_CREATE) {
         ip = create(path, T_FILE, 0, 0, NULL);
-    if(ip == 0){
-      end_op();
-      return -1;
-    }
-  } else if (omode & O_EXTENT) { // Project 4 Part 4 - The O_EXTENT flag indicates we want to create an extent file
-    ip = create(path, T_EXTENT, 0, 0, NULL);
-    
-    if(ip == 0){
-      end_op();
-      return -1;
-    }
-    
-    ip->numExtents = 0;
-    ip->sisterblocks = 0;
-    ip->eOffset = 0;
-    ip->lOffset = 0;
-
+        if(ip == 0){
+          end_op();
+          return -1;
+        }
   } else {
-    if((ip = namei(path)) == 0){
-      end_op();
-      return -1;
-    }
-    ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
-      iunlockput(ip);
-      end_op();
-      return -1;
-    }
+        if((ip = namei(path)) == 0){
+          end_op();
+          return -1;
+        }
+        ilock(ip);
+        if(ip->type == T_DIR && omode != O_RDONLY){
+          iunlockput(ip);
+          end_op();
+          return -1;
+        }
   } // end if-else omode create
 
   // Check for SymLinks, if so then we open the symLinkFile, and then find it's target file, and then actually open that target file.
@@ -469,7 +459,6 @@ int sys_open(void) {
       return fd;
   }
 
-  // add the file to the file table and directory
   if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
     if(f) {
       fileclose(f);
@@ -479,8 +468,7 @@ int sys_open(void) {
     end_op();
     return -1;
   }
-  ip->eOffset = 0;
-  ip->lOffset = 0;
+
   iunlock(ip);
   end_op();
 

@@ -1,0 +1,11 @@
+# Project 4 Part 2 - Symbolic Link Screenshots
+
+Output from running the "testSymLink" user program, which is meant to demo and test that symbolic links are working as expected from the part 2 description.
+For more detail, see the README.md
+
+To run this test, run the following commands:
+1. Navigate to the OperatingSystems-Project-4 file.
+2. Run `make clean
+3. Run `make qemu-nox
+4. After xv6 runs, run `testSymlink (don't pass in any arguments)
+5. For more detail, see testSymLink.c
