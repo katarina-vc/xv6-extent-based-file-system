@@ -18,7 +18,7 @@ To implement the `lseek` system call with `SEEK_SET` functionality, we first nee
 
 Secondly, in `file.c`, a modification to the `filewrite()` function was necessary. In the event the file offset was bigger than the size of the file, a character array filled with null characters is written to the file, and the file size is adjusted accordingly based on the difference between the offset and the file size. Below is a picture demonstrating the `lseek` capabilities with the user program `fsproj4`:
 
-![lseek demo](/Project%204%20Screenshots/lseek%20demo.PNG)
+![lseek demo](/Project%204%20Screenshots/Part%201%20-%20lseek%20Screenshots/Project4-Part1-LSeek-Demo.png)
 
 The program writes the lines "Test 1: 12345\n" and "Test 2: ABC\n" to the file "lseektest". The first write consists of 15 bytes, then `lseek` moves the offset by 10 bytes (to position 25) before the second write, which writes 13 bytes. The file size is now 25 + 13 = 38, and `cat` returns the file contents as expected.
 
@@ -86,11 +86,12 @@ We have created a function that can write a large file. As the guidelines state,
 
 <u>Verification that xv6 does not have pre-built support</u>
 To verify that xv6 does not have pre-built support, we decided to run our command in the xv6. As expected, the xv6 failed to support the large file and panicked instead. This can be seen in the following screenshot. 
-![demo](/Project%204%20Screenshots/before_implementation.png)
+![demo](/Project%204%20Screenshots/Part%203%20-%20Big%20File%20Screenshots/Project4-Part3-BeforeImplementation.png)
 
 <u>Doubley inode system</u>
 Now is the time to implement a system capable of supporting large files. To make this possible, we changed files 'fs. h' to enable an extra bit allocated for the additional indirect block. Then, we modified the `fs. c` file, specifically, the `bmap()` function, to utilize the added bit. 
 After making the modifications, we tested our code. It may take some time (about 30 seconds) to create the large file, but the file would be created successfully, and it can be stored inside of the current working directory like in the image below
-![demo](/Project%204%20Screenshots/after_implementation.png)
+![demo](/Project%204%20Screenshots/Part%203%20-%20Big%20File%20Screenshots/Project4-Part3-LargeFile-AfterImplementationPic.png)
 
 ## Part 4 - Adding Extent-based File Support
+To support extent files, several changes have been made to `inode` structure:
