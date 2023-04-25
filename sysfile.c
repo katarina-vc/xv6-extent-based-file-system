@@ -440,6 +440,19 @@ int sys_open(void) {
           end_op();
           return -1;
         }
+  } else if (omode & O_EXTENT) { // Project 4 Part 4 - The O_EXTENT flag indicates we want to create an extent file
+    ip = create(path, T_EXTENT, 0, 0, NULL);
+    
+    if(ip == 0){
+      end_op();
+      return -1;
+    }
+    
+    ip->numExtents = 0;
+    ip->sisterblocks = 0;
+    ip->eOffset = 0;
+    ip->lOffset = 0;
+
   } else {
         if((ip = namei(path)) == 0){
           end_op();
@@ -468,7 +481,8 @@ int sys_open(void) {
     end_op();
     return -1;
   }
-
+  ip->eOffset = 0;
+  ip->lOffset = 0;
   iunlock(ip);
   end_op();
 
