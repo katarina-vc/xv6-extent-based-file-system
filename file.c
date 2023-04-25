@@ -9,6 +9,7 @@
 #include "spinlock.h"
 #include "sleeplock.h"
 #include "file.h"
+#include "stat.h"
 
 struct devsw devsw[NDEV];
 struct {
@@ -107,12 +108,19 @@ fileread(struct file *f, char *addr, int n)
     return piperead(f->pipe, addr, n);
   if(f->type == FD_INODE){
     ilock(f->ip);
-    if((r = readi(f->ip, addr, f->off, n)) > 0)
-      f->off += r;
+
+    if(f->ip->type == T_EXTENT){
+        r = readi(f->ip, addr, f->off, n);
+    } else {
+        if((r = readi(f->ip, addr, f->off, n)) > 0) {
+          f->off += r;
+        }
+    }
+
     iunlock(f->ip);
     return r;
   }
-
+  
   // Project 4 - Part 2 - Read a symlink
   if(f->type == SYMLINK) {
     ilock(f->ip);
@@ -131,10 +139,10 @@ filewrite(struct file *f, char *addr, int n)
 {
   int r;
 
-  if(f->writable == 0)
+  if(f->writable == 0){
     return -1;
+  }
 
-  
   // JTM - Check if the offset is bigger than the file size
   if(f->off > f->ip->size){
 	// Add in 0's to fill in holes by supplying it with an empty array of the size difference.
@@ -160,8 +168,10 @@ filewrite(struct file *f, char *addr, int n)
 	f->ip->size += byteDiff;
   }
 
-  if(f->type == FD_PIPE)
+  if(f->type == FD_PIPE) {
     return pipewrite(f->pipe, addr, n);
+  }
+
   if(f->type == FD_INODE){
     // write a few blocks at a time to avoid exceeding
     // the maximum log transaction size, including

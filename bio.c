@@ -102,7 +102,7 @@ bread(uint dev, uint blockno)
   if((b->flags & B_VALID) == 0) {
     iderw(b);
   }
-  return b;
+  return b; 
 }
 
 // Write b's contents to disk.  Must be locked.

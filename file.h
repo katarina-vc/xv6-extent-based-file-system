@@ -8,6 +8,10 @@ struct file {
   uint off;
 };
 
+struct extent {
+  uint length; 
+  uint startingAddress; 
+};
 
 // in-memory copy of an inode
 struct inode {
@@ -23,7 +27,14 @@ struct inode {
   short nlink;
   uint size;
   uint addrs[NDIRECT+2];  //Changed to allow for a double indirect block
+  struct extent extentz[NDIRECT];
+  uint numExtents;
+  int sisterblocks; // for continuous allocation and frag. reduction
+  int eOffset; 
+  int lOffset;
 };
+
+
 
 // table mapping major device number to
 // device functions

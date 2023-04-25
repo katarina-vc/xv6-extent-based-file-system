@@ -60,16 +60,17 @@ balloc(uint dev)
   struct buf *bp;
 
   bp = 0;
+  // read all the blocks on the superblock (the xv6 mega block of all blocks)
   for(b = 0; b < sb.size; b += BPB){
     bp = bread(dev, BBLOCK(b, sb));
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
       m = 1 << (bi % 8);
-      if((bp->data[bi/8] & m) == 0){  // Is block free?
+      if((bp->data[bi/8] & m) == 0){  // Is block free? if soo....
         bp->data[bi/8] |= m;  // Mark block in use.
-        log_write(bp);
+        log_write(bp); // write the updated block map back to the physical disk
         brelse(bp);
         bzero(dev, b + bi);
-        return b + bi;
+        return b + bi; // return the block number of the newly allocated blocky block
       }
     }
     brelse(bp);
@@ -359,34 +360,24 @@ iunlockput(struct inode *ip)
   iput(ip);
 }
 
-//PAGEBREAK!
-// Inode content
-//
-// The content (data) associated with each inode is stored
-// in blocks on the disk. The first NDIRECT block numbers
-// are listed in ip->addrs[].  The next NINDIRECT blocks are
-// listed in block ip->addrs[NDIRECT].
 
-// Return the disk block address of the nth block in inode ip.
-// If there is no such block, bmap allocates one.
 static uint
 bmap(struct inode *ip, uint bn)
 {
   uint addr, *a;
-  // short entry, offset;
   struct buf *bp;
 
-  // Implementation of direct system
   if(bn < NDIRECT){
-    if((addr = ip->addrs[bn]) == 0)
-      ip->addrs[bn] = addr = balloc(ip->dev);
+    if((addr = ip->addrs[bn]) == 0) {
+      ip->addrs[bn] = addr = balloc(ip->dev);    
+    }
+
     return addr;
   }
+
   bn -= NDIRECT;
 
-  // Implementation of single indirect system
   if(bn < NINDIRECT){
-    // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
     bp = bread(ip->dev, addr);
@@ -464,7 +455,7 @@ itrunc(struct inode *ip)
 }
 
 // Copy stat information from inode.
-// Caller must hold ip->lock.
+// Caller must hold ip->lock. stathere
 void
 stati(struct inode *ip, struct stat *st)
 {
@@ -473,34 +464,77 @@ stati(struct inode *ip, struct stat *st)
   st->type = ip->type;
   st->nlink = ip->nlink;
   st->size = ip->size;
+
+  if(ip->type == T_EXTENT) {
+      st->numExtents = ip->numExtents;
+    for(int i = 0; i < ip->numExtents; i++){
+        st->extentz[i].length = ip->extentz[i].length;
+        st->extentz[i].startingAddress = ip->extentz[i].startingAddress;
+    }
+  } else {
+    if(ip->type == T_FILE) {
+      for(int i = 0; i < NDIRECT; i++){
+        st->addrs[i] = ip->addrs[i];
+      }
+    }
+  }
 }
 
 //PAGEBREAK!
 // Read data from inode.
 // Caller must hold ip->lock.
-int
-readi(struct inode *ip, char *dst, uint off, uint n)
-{
+int readi(struct inode *ip, char *dst, uint off, uint n) {
   uint tot, m;
   struct buf *bp;
 
   if(ip->type == T_DEV){
-    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read)
+    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read) {
       return -1;
+    }
     return devsw[ip->major].read(ip, dst, n);
   }
 
-  if(off > ip->size || off + n < off)
-    return -1;
-  if(off + n > ip->size)
-    n = ip->size - off;
+  if(ip->type == T_EXTENT) {
+      if(ip->lOffset >= ip->sisterblocks) {
+        // We are done!
+          return 0;
+      }
 
-  for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
-    bp = bread(ip->dev, bmap(ip, off/BSIZE));
-    m = min(n - tot, BSIZE - off%BSIZE);
-    memmove(dst, bp->data + off%BSIZE, m);
-    brelse(bp);
+      for(int i = ip->eOffset; i < ip->numExtents; i++) {
+          for(int j = 0; j < ip->extentz[i].length; j++) {
+
+              bp = bread(ip->dev, bmap(ip, ip->lOffset));
+              int bpSize = strlen((char *)bp->data);
+
+              if(bpSize > 512) {
+                bpSize = 512;
+              }
+
+              memmove(dst, bp->data, bpSize);
+
+              ip->lOffset++;
+
+              brelse(bp);
+              return bpSize;
+          }
+      }
+  } else {  
+        if(off > ip->size || off + n < off) {
+              return -1;
+        }
+
+        if(off + n > ip->size) {
+            n = ip->size - off;
+        }
+
+      for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
+        bp = bread(ip->dev, bmap(ip, off/BSIZE));
+        m = min(n - tot, BSIZE - off%BSIZE);
+        memmove(dst, bp->data + off%BSIZE, m);
+        brelse(bp);
+      }
   }
+
   return n;
 }
 
@@ -513,30 +547,81 @@ writei(struct inode *ip, char *src, uint off, uint n)
   uint tot, m;
   struct buf *bp;
 
-  if(ip->type == T_DEV){
-    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write)
+  if(ip->type == T_DEV) {
+    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write) {
+      cprintf("Here\n\n :(\n\n)");
       return -1;
+    }
     return devsw[ip->major].write(ip, src, n);
   }
 
-  if(off > ip->size || off + n < off)
+  if(off > ip->size || off + n < off) {
+    cprintf("offset es 2 big ;(\n");
     return -1;
-  if(off + n > MAXFILE*BSIZE)
+  }
+  if(off + n > MAXFILE*BSIZE) {
+    cprintf("offset es outta boundss\n");
     return -1;
-
-  for(tot=0; tot<n; tot+=m, off+=m, src+=m){
-    bp = bread(ip->dev, bmap(ip, off/BSIZE));
-    m = min(n - tot, BSIZE - off%BSIZE);
-    memmove(bp->data + off%BSIZE, src, m);
-    log_write(bp);
-    brelse(bp);
   }
 
-  if(n > 0 && off > ip->size){
-    ip->size = off;
-    iupdate(ip);
+// Project 4 Part 4 things.
+  if(ip->type == T_EXTENT) {
+    // Check we havent made too made extents
+    if(ip->numExtents > NDIRECT) {
+      cprintf("You have too many extents. Your extent file is too big and we cannot continue to write. Exiting...\n");
+      exit();
+    } else {
+      ip->numExtents++;
+    }
+
+    struct extent iextent;
+    int lengthCounter = 0;
+
+    for(tot=0; tot<n; tot+=m, off+=m, src+=m){
+      if(tot == 0) {
+          iextent.startingAddress = bmap(ip, ip->sisterblocks);
+          bp = bread(ip->dev, iextent.startingAddress);
+      } else {
+        bp = bread(ip->dev, bmap(ip, ip->sisterblocks));
+      }
+
+      ip->sisterblocks++;
+      lengthCounter++;
+
+      m = min(n - tot, BSIZE - off%BSIZE);     
+      memmove(bp->data + off%BSIZE, src, m);  
+      log_write(bp); 
+
+      brelse(bp);
+    } 
+
+    iextent.length = lengthCounter;
+
+    if(n > 0){
+      ip->extentz[ip->numExtents - 1] = iextent;
+      ip->size += n;
+      ip->eOffset = 0;
+      ip->lOffset = 0;
+      iupdate(ip);
+    }
+  } else { 
+      for(tot=0; tot<n; tot+=m, off+=m, src+=m){
+        bp = bread(ip->dev, bmap(ip, off/BSIZE));
+
+        m = min(n - tot, BSIZE - off%BSIZE);    
+        memmove(bp->data + off%BSIZE, src, m);  
+
+        log_write(bp); 
+        brelse(bp); 
+      }
+
+      if(n > 0 && off > ip->size){
+        ip->size = off;
+        iupdate(ip);
+      }
   }
-  return n;
+
+  return n; 
 }
 
 //PAGEBREAK!
@@ -548,8 +633,6 @@ namecmp(const char *s, const char *t)
   return strncmp(s, t, DIRSIZ);
 }
 
-// Look for a directory entry in a directory.
-// If found, set *poff to byte offset of entry.
 struct inode*
 dirlookup(struct inode *dp, char *name, uint *poff)
 {
@@ -565,7 +648,6 @@ dirlookup(struct inode *dp, char *name, uint *poff)
     if(de.inum == 0)
       continue;
     if(namecmp(name, de.name) == 0){
-      // entry matches path element
       if(poff)
         *poff = off;
       inum = de.inum;
@@ -576,7 +658,6 @@ dirlookup(struct inode *dp, char *name, uint *poff)
   return 0;
 }
 
-// Write a new directory entry (name, inum) into the directory dp.
 int
 dirlink(struct inode *dp, char *name, uint inum)
 {
