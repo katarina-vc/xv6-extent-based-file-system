@@ -94,4 +94,16 @@ After making the modifications, we tested our code. It may take some time (about
 ![demo](/Project%204%20Screenshots/Part%203%20-%20Big%20File%20Screenshots/Project4-Part3-LargeFile-AfterImplementationPic.png)
 
 ## Part 4 - Adding Extent-based File Support
-To support extent files, several changes have been made to `inode` structure:
+Implementation supports creation & usage (read, write) of extent-based files [25 points]
+To create extents, I created an extent struct in the file.h to hold both the starting address and length pair for each individual extent. When we create a file and pass the O_EXTENT flag, we create an extent file.
+
+We don't start allocating anything to our extent file until we write to the extent file. When we write to the extent file, we allocate an extent. The size of the extent we allocate is based off of the size of the data we are writing. If we write to a file multiple times, we can see how more extents are added to the file, and the length of each extent is dependent again on the size of the data we are writing. Therefore, our files can have multiple extents of various length.
+
+When we read from an extent, we read based on each extent in the file at its start address, and then traverse through the length of the extent until the read operation is complete. 
+
+#### stat user program
+I also implemented the stat user program, which checks if the file type we are reading is an extent type or pointer based file. If we stat an extent file, then we get files information plus information about its extents. (see screenshot below)
+![image](https://user-images.githubusercontent.com/25674116/234158993-1709b034-450f-45be-9f53-025ddd28f880.png)
+
+If we stat a pointer based file, such as the README file that the xv6 operating system has, then we get information about its file and its direct pointers.
+![image](https://user-images.githubusercontent.com/25674116/234159177-61dde823-1691-40de-b98a-f5869a064e44.png)
