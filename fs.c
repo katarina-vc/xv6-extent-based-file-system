@@ -465,7 +465,7 @@ stati(struct inode *ip, struct stat *st)
   st->nlink = ip->nlink;
   st->size = ip->size;
 
-  if(ip->type == T_EXTENT) {
+  if(ip->type == T_EXTENT || ip->type == 5) {
       st->numExtents = ip->numExtents;
     for(int i = 0; i < ip->numExtents; i++){
         st->extentz[i].length = ip->extentz[i].length;
