@@ -1,6 +1,6 @@
-# COP6611.001S23 - Operating Systems - Project 4
+# xv6 - Adding lseek, symlinks, and an extent based file system
 
-## Group Members (Same Team from Projects 1, 2, & 3)
+## Devs
 * Katarina Capalbo 
 * John Maurer
 * Azim Ibragimov
@@ -11,7 +11,7 @@
 
 ## Implementation Notes
 
-Screenshots for all parts can be found in the [Project 4 Screenshots](/Project%204%20Screenshots) folder.
+Screenshots for all parts can be found in the [Screenshots](/Project%204%20Screenshots) folder.
 
 ## Part 1 - Adding `lseek`
 To implement the `lseek` system call with `SEEK_SET` functionality, we first needed to add it in as a system call. The code lives in `sysfile.c`, as that is also the location of all other file-related system calls. It accepts a file descriptor and an offset, and verifies that the arguments are valid. It obtains a file pointer via `myproc()->ofile[fileDescriptor]`, which then allows us to add the offset argument to `filePointer->off`. It returns this updated ofset value.
